@@ -1,0 +1,487 @@
+from zeep import Client
+from io import StringIO
+import pandas as pd
+import datetime
+import requests
+import json
+import math
+import time
+
+### AUTH FUNCTIONS
+
+# login function that returns a Salesforce API session
+def loginToSalesforce(username, password, securityToken):
+    wsdl = './basic_wsdl.xml'
+    
+    SOAPclient = Client(wsdl)
+    data = {'username': username, 'password': password+securityToken}
+    response = SOAPclient.service.login(**data)
+    sessionId = response.sessionId
+
+    # create session for Bulk 2.0 API calls
+    session = requests.Session()
+    session.headers.update({'Authorization': 'Bearer '+ sessionId})
+    
+    return session
+
+# login function for Salesforce sandbox, returns a dev session for testing
+# DEVELOPMENT MODE -- FOR TESTING ONLY
+# need to pull client ID and client secret from a sandbox in Salesforce and plug them into this function below
+def loginToSalesforceSANDBOX(username, password, securityToken):
+    # API variables for development mode
+    clientId = ''
+    clientSecret = ''
+    
+    data={'grant_type':'password', 'client_id':clientId, 'client_secret':clientSecret, 'username':username, 'password':password+securityToken}
+    response = requests.post('https://test.salesforce.com/services/oauth2/token', data=data)
+    sessionId = response.json()['access_token']
+
+    # create session for Bulk 2.0 API calls
+    session = requests.Session()
+    session.headers.update({'Authorization': 'Bearer '+ sessionId})
+    
+    return session
+
+### GENERAL HELPERS
+
+# helper function to cleanup whitespace between words in a DF column
+def cleanupNameWhitespace(df, colName):
+    for index, row in df.iterrows():
+        df.at[index, colName] = ' '.join(df.at[index, colName].split())
+    return df
+
+### SALESFORCE BULK 2.0 API FUNCTIONS: QUERY AND INGEST
+
+# function to query Salesforce and return a Pandas Dataframe
+def getDataframeFromSalesforce(query, session, uri):  
+    session.headers.update({'Content-Type': 'application/json;charset=utf-8'})
+    
+    # create a job to query all Account records
+    data = json.dumps({
+      "operation": "query",
+      "query": query,
+    })
+    response = session.post(uri+'query', data=data)
+
+    if (response.status_code == 200):
+        print('Query job created.')
+    else:
+        print('Query job creation failed:\n' + str(response.json()))
+        exit()
+
+    # pull out job ID to use for future requests
+    jobId = response.json().get('id')
+
+    # wait for job to complete before getting results
+    print('Waiting for query job to complete...')
+    jobComplete = False
+
+    while not jobComplete:
+        response = session.get(uri+'query/'+jobId)
+        jsonRes = response.json()
+        if str(jsonRes['state']) == 'JobComplete':
+            jobComplete = True
+        time.sleep(0.5)
+
+    # get job results
+    response = session.get(uri+'query/'+jobId+'/results')
+    s = str(response.content,'utf-8')
+    data = StringIO(s)
+
+    df = pd.read_csv(data)
+    print('Done.\n')
+    return df
+
+# function to create and execute a Salesforce bulk upload or delete job
+def executeSalesforceIngestJob(operation, importData, objectType, session, uri):    
+    # create data import job
+    data = json.dumps({
+       "operation":operation,
+       "object":objectType,
+       "contentType":"CSV",
+       "lineEnding":"LF"
+    })
+    response = session.post(uri+'ingest/', data=data)
+
+    if response.status_code == 200:
+        if operation == 'insert':
+            print('Upload job created.')
+        elif operation == 'delete':
+            print('Delete job created.')
+    else:
+        if operation == 'insert':
+            print('Upload job creation failed.')
+        elif operation == 'delete':
+            print('Delete job creation failed.')
+        print(response.json())
+        exit();
+
+    jobId = response.json().get('id')
+
+    # add data to job
+    session.headers.update({'Content-Type': 'text/csv;charset=UTF-8'})
+    response = session.put(uri+'ingest/'+jobId+'/batches', data=importData.encode('utf-8'))
+
+    if response.status_code == 201:
+        print('Data added to job.')
+    else:
+        print('Data add failed.')
+        print(response.json())
+        exit()
+
+    # close the job => Salesforce begins processing the job
+    session.headers.update({'Content-Type': 'application/json;charset=utf-8'})
+    data = json.dumps({ 'state': 'UploadComplete' })
+    response = session.patch(uri+'ingest/'+jobId, data=data)
+
+    # wait for job to complete before getting results
+    print('Waiting for job to complete...')
+    jobComplete = False
+
+    while not jobComplete:
+        response = session.get(uri+'ingest/'+jobId)
+        jsonRes = response.json()
+        if str(jsonRes['state']) == 'JobComplete':
+            jobComplete = True
+        elif str(jsonRes['state']) == 'Failed':
+            print('Job Failed. Please check Bulk Data Load Jobs in Salesforce Setup')
+            print(jsonRes['errorMessage'])
+            exit()
+        time.sleep(0.25)
+    
+    if operation == 'insert':
+        print('Upload complete!\n')
+    elif operation == 'delete':
+        print('Deletion complete.\n')
+    
+    # get job results to display to user
+    print('Job results:')
+    response = session.get(uri+'ingest/'+jobId)
+    jsonRes = response.json()
+    print('Records processed: ' + str(jsonRes['numberRecordsProcessed']))
+    print('Records failed: ' + str(jsonRes['numberRecordsFailed']) + '\n')
+    if jsonRes['numberRecordsFailed'] > 0:
+        response = session.get(uri+'ingest/'+jobId+'/failedResults')
+        print('---ERROR MESSAGE---')
+        print(response.text)
+        print('-------------------')
+        print('Please check Salesforce for further explanation: Setup > Bulk Data Load Jobs\n')
+    
+### WRAPPER FUNCTIONS
+
+# generic function to upload Account (both donor and nonprofit) data to Salesforce
+def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session, uri):
+    adminAccountsDF.columns = ['Parent Name', 'Name', 'Phone', 'Line1', 'Line2', 'ShippingCity', 'ShippingState', 'ShippingPostalCode']
+
+    # clean Accounts data
+    salesforceAccountsDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == accountType]
+    salesforceAccountsDF = salesforceAccountsDF[['Id', 'Name']]
+    salesforceAccountsDF = salesforceAccountsDF.reset_index().drop(axis='columns', columns=['index'])
+    
+    # cleanup whitespace from names and parent names
+    salesforceAccountsDF = cleanupNameWhitespace(salesforceAccountsDF, 'Name')
+    adminAccountsDF = cleanupNameWhitespace(adminAccountsDF, 'Parent Name')
+    adminAccountsDF = cleanupNameWhitespace(adminAccountsDF, 'Name')
+
+    # find all accounts in the admin tool not in salesforce
+    accountsNotInSalesforceDF = pd.merge(adminAccountsDF, salesforceAccountsDF, on='Name', how='left')
+    accountsNotInSalesforceDF = accountsNotInSalesforceDF[accountsNotInSalesforceDF['Id'].isnull()]
+    accountsNotInSalesforceDF = accountsNotInSalesforceDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
+
+    # convert shipping addresses to Salesforce format
+    accountsNotInSalesforceDF['ShippingStreet'] = accountsNotInSalesforceDF['Line1'] + (' ' + accountsNotInSalesforceDF['Line2']).fillna('')
+    accountsNotInSalesforceDF.drop(axis='columns', columns=['Line1', 'Line2'], inplace=True)
+
+    # add columns for ParentId and RecordTypeId
+    accountsNotInSalesforceDF['ParentId'] = None
+    accountsNotInSalesforceDF['RecordTypeId'] = accountType
+
+    # create empty dataframes for first and second upload jobs
+    uploadDFRows = []
+    uploadDF2Rows = []
+    
+    # iterate through accounts to determine parent-child relationships
+    for index, row in accountsNotInSalesforceDF.iterrows():
+        childName = row['Name']
+        parentName = row['Parent Name']
+        if (childName == parentName):
+            uploadDFRows.append(row.values)
+        elif (parentName in salesforceAccountsDF['Name'].values):
+            parentId = salesforceAccountsDF[salesforceAccountsDF['Name'] == parentName]['Id'].item()
+            row['ParentId'] = parentId
+            uploadDFRows.append(row.values)
+        else:
+            # create generic record for the new parent account
+            parentRow = [parentName, parentName, None, None, None, None, None, None, accountType]
+            uploadDFRows.append(parentRow)
+            # add child account to the second job
+            uploadDF2Rows.append(row.values)
+
+    # prepare dataframe for first upload
+    uploadDF = pd.DataFrame(uploadDFRows, columns=accountsNotInSalesforceDF.columns)
+    uploadDF.drop_duplicates(inplace=True)
+    uploadDF = uploadDF.reset_index().drop(axis='columns', columns=['Parent Name', 'index'])
+    
+    # fix phone number formatting
+    if not uploadDF['Phone'].dtype == 'object':
+        uploadDF['Phone'] = uploadDF['Phone'].astype('Int64')
+    
+    # upload first job to Salesforce
+    executeSalesforceIngestJob('insert', uploadDF.to_csv(index=False), 'Account', session, uri)
+
+    # pull down new list of Accounts
+    salesforceAccountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+
+    # clean new Accounts data
+    salesforceAccountsDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == accountType]
+    salesforceAccountsDF = salesforceAccountsDF[['Id', 'Name']]
+    salesforceAccountsDF = salesforceAccountsDF.reset_index().drop(axis='columns', columns=['index'])
+
+    # attach ID of parent to each record
+    uploadDF2 = pd.DataFrame(uploadDF2Rows, columns=accountsNotInSalesforceDF.columns)
+    for index, row in uploadDF2.iterrows():
+        parentName = row['Parent Name']
+        parentId = salesforceAccountsDF[salesforceAccountsDF['Name'] == parentName]['Id'].item()
+        uploadDF2.at[index, 'ParentId'] = parentId
+        
+    # fix phone number formatting
+    if not uploadDF2['Phone'].dtype == 'object':
+        uploadDF2['Phone'] = uploadDF2['Phone'].astype('Int64')
+
+    # drop parent name column and upload the new child accounts to salesforce
+    uploadDF2.drop(axis='columns', columns=['Parent Name'], inplace=True)
+    executeSalesforceIngestJob('insert', uploadDF2.to_csv(index=False), 'Account', session, uri)
+    
+# generic function to upload Food Rescue data to Salesforce
+def uploadFoodRescues(rescuesDF, session, uri):
+    # load in Accounts from Salesforce
+    salesforceAccountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+
+    # load in Contacts from Salesforce
+    salesforceContactsDF = getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session, uri)
+
+    # cleanup rescuesDF
+    rescuesDF.drop(axis='columns', columns=['Donor Name', 'Recipient Name'], inplace=True)
+    rescuesDF = rescuesDF[(rescuesDF['Rescue State'] == 'canceled') | (rescuesDF['Rescue State'] == 'completed')]
+    rescuesDF = rescuesDF.reset_index().drop(axis='columns', columns='index')
+
+    # get list of Food Donors
+    salesforceDonorsDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == '0123t000000YYv2AAG']
+    salesforceDonorsDF = salesforceDonorsDF[['Id', 'Name']]
+    salesforceDonorsDF = salesforceDonorsDF.reset_index().drop(axis='columns', columns=['index'])
+    salesforceDonorsDF.columns = ['Food_Donor_Account_Name__c', 'Donor Location Name']
+
+    # get list of Nonprofit Partners
+    salesforcePartnersDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == '0123t000000YYv3AAG']
+    salesforcePartnersDF = salesforcePartnersDF[['Id', 'Name']]
+    salesforcePartnersDF = salesforcePartnersDF.reset_index().drop(axis='columns', columns=['index'])
+    salesforcePartnersDF.columns = ['Agency_Name__c', 'Recipient Location Name']
+
+    # get list of Volunteers
+    salesforceVolunteersDF = salesforceContactsDF[salesforceContactsDF['AccountId'] == '0013t00001teMBwAAM']
+    salesforceVolunteersDF = salesforceVolunteersDF[['Id', 'Name']]
+    salesforceVolunteersDF = salesforceVolunteersDF.reset_index().drop(axis='columns', columns=['index'])
+    salesforceVolunteersDF.columns = ['Volunteer_Name__c', 'Volunteer Name']
+
+    # cleanup whitespace in name fields before performing vlookups
+    salesforceDonorsDF = cleanupNameWhitespace(salesforceDonorsDF, 'Donor Location Name')
+    salesforcePartnersDF = cleanupNameWhitespace(salesforcePartnersDF, 'Recipient Location Name')
+    salesforceVolunteersDF = cleanupNameWhitespace(salesforceVolunteersDF, 'Volunteer Name')
+    rescuesDF = cleanupNameWhitespace(rescuesDF, 'Donor Location Name')
+    rescuesDF = cleanupNameWhitespace(rescuesDF, 'Recipient Location Name')
+    rescuesDF['Volunteer Name'] = rescuesDF['Volunteer Name'].astype(str)
+    rescuesDF = cleanupNameWhitespace(rescuesDF, 'Volunteer Name')
+
+    # Dataframe merges (vlookups) to add links to rescuesDF
+    mergedDF = pd.merge(rescuesDF, salesforceDonorsDF, on='Donor Location Name', how='left')
+    mergedDF = pd.merge(mergedDF, salesforcePartnersDF, on='Recipient Location Name', how='left')
+    mergedDF = pd.merge(mergedDF, salesforceVolunteersDF, on='Volunteer Name', how='left')
+
+    # fix columns to prepare for upload
+    mergedDF.drop(axis='columns', columns=['Donor Location Name', 'Recipient Location Name', 'Volunteer Name'], inplace=True)
+    mergedDF.columns=['Rescue_Id__c', 'Day_of_Pickup__c', 'State__c', 'Description__c', 'Food_Type__c', 'Weight__c', 'Rescue_Detail_URL__c', 'Food_Donor_Account_Name__c', 'Agency_Name__c', 'Volunteer_Name__c']
+
+    # upload rescues to Salesforce
+    executeSalesforceIngestJob('insert', mergedDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
+    
+# wrapper function to upload Food Donors to Salesforce => purpose is to hide code from the IPYNB
+def uploadFoodDonors(session, uri):
+    # load in Accounts from Salesforce
+    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+
+    # load in donor data from admin tool
+    donorsDF = pd.read_csv('lastmile_donors.csv')
+
+    # filter out inactive accounts and unnecessary data columns
+    donorsDF = donorsDF[donorsDF['Active'] == 't']
+    donorsDF = donorsDF[['Donor name', 'Location name', 'Phone', 'Line1', 'Line2', 'City', 'State', 'Zip']]
+
+    # upload Food Donors (type ID: '0123t000000YYv2AAG') to Salesforce
+    uploadAccounts(accountsDF, donorsDF, '0123t000000YYv2AAG', session, uri)
+
+# wrapper function to upload Nonprofit Partners => purpose is to hide code from the IPYNB
+def uploadNonprofitPartners(session, uri):
+    # load in Accounts from Salesforce
+    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+    
+    # load in partner data from admin tool
+    partnersDF = pd.read_csv('lastmile_partners.csv')
+
+    # filter out inactive accounts and unnecessary data columns
+    partnersDF = partnersDF[partnersDF['Status'] != 2]
+    partnersDF = partnersDF[['Recipient name', 'Location name', 'Phone', 'Line1', 'Line2', 'City', 'State', 'Zip']]
+
+    # upload Nonprofit Partners (type ID: '0123t000000YYv3AAG') to Salesforce
+    uploadAccounts(accountsDF, partnersDF, '0123t000000YYv3AAG', session, uri)
+    
+# wrapper function to upload Volunteers => purpose is to hide code from the IPYNB
+def uploadVolunteers(session, uri):
+    # load Contacts from Salesforce
+    contactsDF = getDataframeFromSalesforce('SELECT Id, Name, Email, Phone, AccountId FROM Contact', session, uri)
+
+    # load volunteer data from admin tool
+    volunteersDF = pd.read_csv('lastmile_volunteers.csv')
+
+    # filter all Contacts to just get Food Rescue Heroes (id: '0013t00001teMBwAAM')
+    salesforceVolunteersDF = contactsDF[contactsDF['AccountId'] == '0013t00001teMBwAAM']
+    salesforceVolunteersDF = salesforceVolunteersDF[['Id', 'Name']]
+
+    # clean up columns
+    # TODO: make MailingStreet consist of both Line1 and Line2 fields (currently just Line1)
+    volunteersDF = volunteersDF[['Name', 'Email', 'Phone', 'Line1', 'City', 'State', 'Zip']]
+    volunteersDF.columns = ['Name', 'Email', 'Phone', 'MailingStreet', 'MailingCity', 'MailingState', 'MailingPostalCode']
+
+    # cleanup whitespace in the Name fields to increase matches
+    volunteersDF = cleanupNameWhitespace(volunteersDF, 'Name')
+    salesforceVolunteersDF = cleanupNameWhitespace(salesforceVolunteersDF, 'Name')
+
+    # find all volunteers in the admin tool not in Salesforce
+    volunteersNotInSalesforceDF = pd.merge(volunteersDF, salesforceVolunteersDF, on='Name', how='left')
+    volunteersNotInSalesforceDF = volunteersNotInSalesforceDF[volunteersNotInSalesforceDF['Id'].isnull()]
+    volunteersNotInSalesforceDF = volunteersNotInSalesforceDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
+
+    # add a column to register these Contacts as Volunteers, format phone numbers
+    volunteersNotInSalesforceDF['AccountId'] = '0013t00001teMBwAAM'
+    volunteersNotInSalesforceDF['Phone'] = volunteersNotInSalesforceDF['Phone'].astype('Int64')
+
+    # split Name column into FirstName and LastName columns
+    volunteersNotInSalesforceDF['FirstName'] = volunteersNotInSalesforceDF['Name']
+    volunteersNotInSalesforceDF['LastName'] = volunteersNotInSalesforceDF['Name']
+    for index, row in volunteersNotInSalesforceDF.iterrows():
+        volunteersNotInSalesforceDF.at[index, 'FirstName'] = ' '.join(volunteersNotInSalesforceDF.at[index, 'Name'].split()[0:-1])
+        volunteersNotInSalesforceDF.at[index, 'LastName'] = volunteersNotInSalesforceDF.at[index, 'Name'].split()[-1]
+    volunteersNotInSalesforceDF.drop(axis='columns', columns=['Name'], inplace=True)
+    volunteersNotInSalesforceDF = volunteersNotInSalesforceDF[['FirstName', 'LastName', 'Email', 'Phone', 'MailingStreet', 'MailingCity', 'MailingState', 'MailingPostalCode', 'AccountId']]
+
+    # upload Volunteers to Salesforce
+    executeSalesforceIngestJob('insert', volunteersNotInSalesforceDF.to_csv(index=False), 'Contact', session, uri)
+
+# wrapper function that deletes all Food Rescues in Salesforce and then uploads all rescues from admin tool
+# this is a hard refresh that makes Salesforce rescue data a copy of admin tool rescue data
+def uploadFoodRescuesHARDREFRESH(session, uri):
+    # delete all Food_Rescue__c objects from Salesforce
+    salesforceRescuesSeries = getDataframeFromSalesforce('SELECT Id FROM Food_Rescue__c', session, uri)
+    salesforceRescues = salesforceRescuesSeries.to_csv(index=False)
+    executeSalesforceIngestJob('delete', salesforceRescues, 'Food_Rescue__c', session, uri)
+
+    rescuesDF = pd.read_csv('lastmile_rescues.csv')
+    uploadFoodRescues(rescuesDF, session, uri)
+    
+# wrapper function that finds all new Food Rescues and uploads them to Salesforce
+def uploadNewFoodRescues(session, uri):
+    # read in all rescues from admin tool
+    rescuesDF = pd.read_csv('lastmile_rescues.csv')
+
+    # read in all rescues currently in Salesforce
+    salesforceRescuesDF = getDataframeFromSalesforce('SELECT Id, Rescue_Id__c, Food_Type__c, Weight__c FROM Food_Rescue__c', session, uri).drop_duplicates()
+    salesforceRescuesDF.columns = ['Id', 'Rescue ID', 'Food Type', 'Weight']
+
+    # find list of rescues not yet in Salesforce
+    mergedDF = pd.merge(rescuesDF, salesforceRescuesDF, on=['Rescue ID', 'Food Type', 'Weight'], how='left')
+    mergedDF = mergedDF[mergedDF['Id'].isnull()]
+    mergedDF = mergedDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
+
+    # upload these new rescues to Salesforce
+    uploadFoodRescues(mergedDF, session, uri)
+    
+# master function to upload new data to Salesforce (Accounts, Contacts, Rescues)
+def uploadDataToSalesforce(session, uri):
+    # first make sure all new Donors, Nonprofits, and Volunteers are uploaded to Salesforce
+    print('-----------------------------')
+    print('Checking for new Food Donors:')
+    print('-----------------------------')
+    uploadFoodDonors(session, uri)
+    print('------------------------------------')
+    print('Checking for new Nonprofit Partners:')
+    print('------------------------------------')
+    uploadNonprofitPartners(session, uri)
+    print('----------------------------')
+    print('Checking for new Volunteers:')
+    print('----------------------------')
+    uploadVolunteers(session, uri)
+    
+    # upload new rescue data
+    print('-------------------------------')
+    print('Uploading all new Food Rescues:')
+    print('-------------------------------')
+    uploadNewFoodRescues(session, uri)
+    print('\nDone!')
+
+### WRAPPER FUNCTIONS FOR HELPER TOOLS
+
+# generic function to find duplicate records
+def findDuplicateRecords(df):
+    duplicatesDF = None
+    try:
+        duplicatesDF = pd.concat(g for _, g in df.groupby("Name") if len(g) > 1)
+    except ValueError:
+        duplicatesDF = 'No duplicates were found!'
+        
+    return duplicatesDF
+
+# wrapper function that returns duplicate Food Donor Accounts in Salesforce
+def findDuplicateFoodDonors(session, uri):
+    # load all Accounts from Salesforce
+    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+
+    # filter all Accounts to just get Food Donors (id: '0123t000000YYv2AAG')
+    foodDonorsDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv2AAG']
+
+    return findDuplicateRecords(foodDonorsDF)
+
+# wrapper function that returns duplicate Nonprofit Partner Accounts in Salesforce
+def findDuplicateNonprofitPartners(session, uri):
+    # load all Accounts from Salesforce
+    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
+
+    # filter all Accounts to just get Nonprofit Partners (id: '0123t000000YYv3AAG')
+    nonprofitPartnersDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv3AAG']
+
+    return findDuplicateRecords(nonprofitPartnersDF)
+
+# wrapper function that returns duplicate Volunteer Contacts in Salesforce
+def findDuplicateVolunteers(session, uri):
+    # load all Contacts from Salesforce
+    contactsDF = getDataframeFromSalesforce('SELECT Id, Name, Email, Phone, AccountId FROM Contact', session, uri)
+
+    # filter all Contacts to just get Food Rescue Heroes (id: '0013t00001teMBwAAM')
+    volunteersDF = contactsDF[contactsDF['AccountId'] == '0013t00001teMBwAAM']
+
+    return findDuplicateRecords(volunteersDF)
+
+# function to find old rescues that haven't been marked as completed or canceled
+def findIncompleteRescues():
+    # filter out completed and canceled rescues
+    rescuesDF = pd.read_csv('lastmile_rescues.csv')
+    rescuesDF = rescuesDF[(rescuesDF['Rescue State'] != 'completed') & (rescuesDF['Rescue State'] != 'canceled')]
+    rescuesDF = rescuesDF.reset_index().drop(axis='columns', columns=['index'])
+
+    # convert date strings to date objects for comparison
+    for index, _ in rescuesDF.iterrows():
+        rescuesDF.at[index, 'Day of Pickup Start'] = datetime.datetime.strptime(rescuesDF.at[index, 'Day of Pickup Start'], '%Y-%m-%d').date()
+
+    # return rescues before today that haven't been completed or canceled
+    today = datetime.date.today()
+    rescuesDF = rescuesDF[rescuesDF['Day of Pickup Start'] < today]
+    return rescuesDF[['Rescue ID', 'Day of Pickup Start', 'Rescue State', 'Rescue Detail URL']].drop_duplicates().reset_index().drop(axis='columns', columns=['index'])
+
