@@ -225,6 +225,9 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session, 
     # fix phone number formatting
     if not uploadDF['Phone'].dtype == 'object':
         uploadDF['Phone'] = uploadDF['Phone'].astype('Int64')
+    # fix zip code formatting
+    if not uploadDF['ShippingPostalCode'].dtype == 'object':
+        uploadDF['ShippingPostalCode'] = uploadDF['ShippingPostalCode'].astype('Int64')
     
     # upload first job to Salesforce
     executeSalesforceIngestJob('insert', uploadDF.to_csv(index=False), 'Account', session, uri)
@@ -247,6 +250,9 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session, 
     # fix phone number formatting
     if not uploadDF2['Phone'].dtype == 'object':
         uploadDF2['Phone'] = uploadDF2['Phone'].astype('Int64')
+    # fix zip code formatting
+    if not uploadDF2['ShippingPostalCode'].dtype == 'object':
+        uploadDF2['ShippingPostalCode'] = uploadDF2['ShippingPostalCode'].astype('Int64')
 
     # drop parent name column and upload the new child accounts to salesforce
     uploadDF2.drop(axis='columns', columns=['Parent Name'], inplace=True)
