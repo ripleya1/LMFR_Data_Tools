@@ -375,17 +375,6 @@ def uploadVolunteers(session, uri):
 
     # upload Volunteers to Salesforce
     executeSalesforceIngestJob('insert', volunteersNotInSalesforceDF.to_csv(index=False), 'Contact', session, uri)
-
-# wrapper function that deletes all Food Rescues in Salesforce and then uploads all rescues from admin tool
-# this is a hard refresh that makes Salesforce rescue data a copy of admin tool rescue data
-def uploadFoodRescuesHARDREFRESH(session, uri):
-    # delete all Food_Rescue__c objects from Salesforce
-    salesforceRescuesSeries = getDataframeFromSalesforce('SELECT Id FROM Food_Rescue__c', session, uri)
-    salesforceRescues = salesforceRescuesSeries.to_csv(index=False)
-    executeSalesforceIngestJob('delete', salesforceRescues, 'Food_Rescue__c', session, uri)
-
-    rescuesDF = pd.read_csv('lastmile_rescues.csv')
-    uploadFoodRescues(rescuesDF, session, uri)
     
 # wrapper function that finds all new Food Rescues and uploads them to Salesforce
 def uploadNewFoodRescues(session, uri):
@@ -400,7 +389,7 @@ def uploadNewFoodRescues(session, uri):
     mergedDF = pd.merge(rescuesDF, salesforceRescuesDF, on=['Rescue ID', 'Food Type', 'Weight'], how='left')
     mergedDF = mergedDF[mergedDF['Id'].isnull()]
     mergedDF = mergedDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
-
+    
     # upload these new rescues to Salesforce
     uploadFoodRescues(mergedDF, session, uri)
     
@@ -430,10 +419,10 @@ def uploadDataToSalesforce(session, uri):
 ### WRAPPER FUNCTIONS FOR HELPER TOOLS
 
 # generic function to find duplicate records
-def findDuplicateRecords(df):
+def findDuplicateRecords(df, colName):
     duplicatesDF = None
     try:
-        duplicatesDF = pd.concat(g for _, g in df.groupby("Name") if len(g) > 1)
+        duplicatesDF = pd.concat(g for _, g in df.groupby(colName) if len(g) > 1)
     except ValueError:
         duplicatesDF = 'No duplicates were found!'
         
@@ -447,7 +436,7 @@ def findDuplicateFoodDonors(session, uri):
     # filter all Accounts to just get Food Donors (id: '0123t000000YYv2AAG')
     foodDonorsDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv2AAG']
 
-    return findDuplicateRecords(foodDonorsDF)
+    return findDuplicateRecords(foodDonorsDF, 'Name')
 
 # wrapper function that returns duplicate Nonprofit Partner Accounts in Salesforce
 def findDuplicateNonprofitPartners(session, uri):
@@ -457,7 +446,7 @@ def findDuplicateNonprofitPartners(session, uri):
     # filter all Accounts to just get Nonprofit Partners (id: '0123t000000YYv3AAG')
     nonprofitPartnersDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv3AAG']
 
-    return findDuplicateRecords(nonprofitPartnersDF)
+    return findDuplicateRecords(nonprofitPartnersDF, 'Name')
 
 # wrapper function that returns duplicate Volunteer Contacts in Salesforce
 def findDuplicateVolunteers(session, uri):
@@ -467,7 +456,7 @@ def findDuplicateVolunteers(session, uri):
     # filter all Contacts to just get Food Rescue Heroes (id: '0013t00001teMBwAAM')
     volunteersDF = contactsDF[contactsDF['AccountId'] == '0013t00001teMBwAAM']
 
-    return findDuplicateRecords(volunteersDF)
+    return findDuplicateRecords(volunteersDF, 'Name')
 
 # function to find old rescues that haven't been marked as completed or canceled
 def findIncompleteRescues():
