@@ -375,7 +375,7 @@ def uploadVolunteers(session, uri):
 
     # upload Volunteers to Salesforce
     executeSalesforceIngestJob('insert', volunteersNotInSalesforceDF.to_csv(index=False), 'Contact', session, uri)
-    
+
 # wrapper function that finds all new Food Rescues and uploads them to Salesforce
 def uploadNewFoodRescues(session, uri):
     # read in all rescues from admin tool
@@ -389,10 +389,10 @@ def uploadNewFoodRescues(session, uri):
     mergedDF = pd.merge(rescuesDF, salesforceRescuesDF, on=['Rescue ID', 'Food Type', 'Weight'], how='left')
     mergedDF = mergedDF[mergedDF['Id'].isnull()]
     mergedDF = mergedDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
-    
+
     # upload these new rescues to Salesforce
     uploadFoodRescues(mergedDF, session, uri)
-    
+
 # master function to upload new data to Salesforce (Accounts, Contacts, Rescues)
 def uploadDataToSalesforce(session, uri):
     # first make sure all new Donors, Nonprofits, and Volunteers are uploaded to Salesforce
