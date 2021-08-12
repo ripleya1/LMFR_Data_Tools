@@ -311,10 +311,7 @@ def uploadFoodRescues(rescuesDF, session, uri):
     executeSalesforceIngestJob('insert', mergedDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
     
 # wrapper function to upload Food Donors to Salesforce => purpose is to hide code from the IPYNB
-def uploadFoodDonors(session, uri):
-    # load in Accounts from Salesforce
-    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
-
+def uploadFoodDonors(accountsDF, session, uri):
     # load in donor data from admin tool
     donorsDF = pd.read_csv('lastmile_donors.csv')
 
@@ -326,10 +323,7 @@ def uploadFoodDonors(session, uri):
     uploadAccounts(accountsDF, donorsDF, '0123t000000YYv2AAG', session, uri)
 
 # wrapper function to upload Nonprofit Partners => purpose is to hide code from the IPYNB
-def uploadNonprofitPartners(session, uri):
-    # load in Accounts from Salesforce
-    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
-    
+def uploadNonprofitPartners(accountsDF, session, uri):
     # load in partner data from admin tool
     partnersDF = pd.read_csv('lastmile_partners.csv')
 
@@ -341,10 +335,7 @@ def uploadNonprofitPartners(session, uri):
     uploadAccounts(accountsDF, partnersDF, '0123t000000YYv3AAG', session, uri)
     
 # wrapper function to upload Volunteers => purpose is to hide code from the IPYNB
-def uploadVolunteers(session, uri):
-    # load Contacts from Salesforce
-    contactsDF = getDataframeFromSalesforce('SELECT Id, Name, Email, Phone, AccountId FROM Contact', session, uri)
-
+def uploadVolunteers(contactsDF, session, uri):
     # load volunteer data from admin tool
     volunteersDF = pd.read_csv('lastmile_volunteers.csv')
 
@@ -400,20 +391,20 @@ def uploadNewFoodRescues(session, uri):
     uploadFoodRescues(mergedDF, session, uri)
 
 # master function to upload new data to Salesforce (Accounts, Contacts, Rescues)
-def uploadDataToSalesforce(session, uri):
+def uploadDataToSalesforce(accountsDF, contactsDF, session, uri):
     # first make sure all new Donors, Nonprofits, and Volunteers are uploaded to Salesforce
     print('-----------------------------')
     print('Checking for new Food Donors:')
     print('-----------------------------')
-    uploadFoodDonors(session, uri)
+    uploadFoodDonors(accountsDF, session, uri)
     print('------------------------------------')
     print('Checking for new Nonprofit Partners:')
     print('------------------------------------')
-    uploadNonprofitPartners(session, uri)
+    uploadNonprofitPartners(accountsDF, session, uri)
     print('----------------------------')
     print('Checking for new Volunteers:')
     print('----------------------------')
-    uploadVolunteers(session, uri)
+    uploadVolunteers(contactsDF, session, uri)
     
     # upload new rescue data
     print('-------------------------------')
