@@ -426,30 +426,21 @@ def findDuplicateRecords(df, colName):
     return duplicatesDF
 
 # wrapper function that returns duplicate Food Donor Accounts in Salesforce
-def findDuplicateFoodDonors(session, uri):
-    # load all Accounts from Salesforce
-    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
-
+def findDuplicateFoodDonors(accountsDF, session, uri):
     # filter all Accounts to just get Food Donors (id: '0123t000000YYv2AAG')
     foodDonorsDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv2AAG']
 
     return findDuplicateRecords(foodDonorsDF, 'Name')
 
 # wrapper function that returns duplicate Nonprofit Partner Accounts in Salesforce
-def findDuplicateNonprofitPartners(session, uri):
-    # load all Accounts from Salesforce
-    accountsDF = getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, uri)
-
+def findDuplicateNonprofitPartners(accountsDF, session, uri):
     # filter all Accounts to just get Nonprofit Partners (id: '0123t000000YYv3AAG')
     nonprofitPartnersDF = accountsDF[accountsDF['RecordTypeId'] == '0123t000000YYv3AAG']
 
     return findDuplicateRecords(nonprofitPartnersDF, 'Name')
 
 # wrapper function that returns duplicate Volunteer Contacts in Salesforce
-def findDuplicateVolunteers(session, uri):
-    # load all Contacts from Salesforce
-    contactsDF = getDataframeFromSalesforce('SELECT Id, Name, Email, Phone, AccountId FROM Contact', session, uri)
-
+def findDuplicateVolunteers(contactsDF, session, uri):
     # filter all Contacts to just get Food Rescue Heroes (id: '0013t00001teMBwAAM')
     volunteersDF = contactsDF[contactsDF['AccountId'] == '0013t00001teMBwAAM']
 
