@@ -6,6 +6,7 @@ import requests
 import json
 import math
 import time
+import sys
 
 ### AUTH FUNCTIONS
 
@@ -67,7 +68,7 @@ def getDataframeFromSalesforce(query, session, uri):
         print('Query job created.')
     else:
         print('Query job creation failed:\n' + str(response.json()))
-        exit()
+        sys.exit()
 
     # pull out job ID to use for future requests
     jobId = response.json().get('id')
@@ -108,13 +109,17 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
             print('Upload job created.')
         elif operation == 'delete':
             print('Delete job created.')
+        elif operation == 'update':
+            print('Update job created.')
     else:
         if operation == 'insert':
             print('Upload job creation failed.')
         elif operation == 'delete':
             print('Delete job creation failed.')
+        elif operation == 'update':
+            print('Update job creation failed.')
         print(response.json())
-        exit();
+        sys.exit()
 
     jobId = response.json().get('id')
 
@@ -127,7 +132,7 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
     else:
         print('Data add failed.')
         print(response.json())
-        exit()
+        sys.exit()
 
     # close the job => Salesforce begins processing the job
     session.headers.update({'Content-Type': 'application/json;charset=utf-8'})
@@ -146,7 +151,7 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
         elif str(jsonRes['state']) == 'Failed':
             print('Job Failed. Please check Bulk Data Load Jobs in Salesforce Setup')
             print(jsonRes['errorMessage'])
-            exit()
+            sys.exit()
         time.sleep(0.25)
     
     if operation == 'insert':
@@ -462,3 +467,31 @@ def findIncompleteRescues():
     rescuesDF = rescuesDF[rescuesDF['Day of Pickup Start'] < today]
     return rescuesDF[['Rescue ID', 'Day of Pickup Start', 'Rescue State', 'Rescue Detail URL']].drop_duplicates().reset_index().drop(axis='columns', columns=['index'])
 
+# function to update Salesforce rescues with comments from an excel file
+def updateSFRescuesWithComments(session, uri):
+    # get rescues from Salesforce
+    salesforceRescuesDF = getDataframeFromSalesforce('SELECT Id, Rescue_Id__c, Comments__c FROM Food_Rescue__c', session, uri)
+    salesforceRescuesDF.columns = ['Id', 'Rescue ID', 'Comments']
+
+    # create rescues DF from comments CSV file
+    commentsDF = pd.read_csv('lastmile_rescue_comments.csv')
+    commentsDF = commentsDF[['Rescue ID', 'Comments']]
+
+    # filter out rescues that already have associated comments
+    salesforceRescuesDF = salesforceRescuesDF.loc[salesforceRescuesDF.Comments.isnull()]
+    # drop the comments column (which is all NaN after above filter)
+    salesforceRescuesDF = salesforceRescuesDF[['Id', 'Rescue ID']]
+
+    # filter out records that have no comments to upload
+    commentsDF = commentsDF.loc[commentsDF.Comments.notnull()]
+
+    # merge two dataframes on Rescue IDs
+    mergedCommentsDF = pd.merge(salesforceRescuesDF, commentsDF, on='Rescue ID', how='left')
+
+    # filter so only rows that picked up comments to upload remain
+    mergedCommentsDF = mergedCommentsDF[mergedCommentsDF['Comments'].notnull()]
+
+    # drop Rescue ID column, rename Comments column, and update Salesforce with new Comments
+    mergedCommentsDF.drop(axis='columns', columns=['Rescue ID'], inplace=True)
+    mergedCommentsDF.columns = ['Id', 'Comments__c']
+    executeSalesforceIngestJob('update', mergedCommentsDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
