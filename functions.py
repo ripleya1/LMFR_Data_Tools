@@ -321,7 +321,7 @@ def uploadFoodDonors(accountsDF, session, uri):
     donorsDF = pd.read_csv('lastmile_donors.csv')
 
     # filter out inactive accounts and unnecessary data columns
-    donorsDF = donorsDF[donorsDF['Active'] == 't']
+    donorsDF = donorsDF[donorsDF['Status'] == 'Active']
     donorsDF = donorsDF[['Donor name', 'Location name', 'Phone', 'Line1', 'Line2', 'City', 'State', 'Zip']]
 
     # upload Food Donors (type ID: '0123t000000YYv2AAG') to Salesforce
@@ -333,7 +333,7 @@ def uploadNonprofitPartners(accountsDF, session, uri):
     partnersDF = pd.read_csv('lastmile_partners.csv')
 
     # filter out inactive accounts and unnecessary data columns
-    partnersDF = partnersDF[partnersDF['Status'] != 2]
+    partnersDF = partnersDF[partnersDF['Status'] == 'Active']
     partnersDF = partnersDF[['Recipient name', 'Location name', 'Phone', 'Line1', 'Line2', 'City', 'State', 'Zip']]
 
     # upload Nonprofit Partners (type ID: '0123t000000YYv3AAG') to Salesforce
