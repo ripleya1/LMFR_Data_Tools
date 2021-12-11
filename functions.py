@@ -495,3 +495,40 @@ def updateSFRescuesWithComments(session, uri):
     mergedCommentsDF.drop(axis='columns', columns=['Rescue ID'], inplace=True)
     mergedCommentsDF.columns = ['Id', 'Comments__c']
     executeSalesforceIngestJob('update', mergedCommentsDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
+    
+# function to find all food rescue discrepancies between Salesforce and the admin tool
+def findRescueDiscrepancies(session, uri, choose):
+    salesforceRescuesDF = getDataframeFromSalesforce('SELECT State__c, Food_Type__c, Day_of_Pickup__c, Rescue_Detail_URL__c, Rescue_Id__c FROM Food_Rescue__c', session, uri)
+    salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
+    
+    # only completed rescues
+    salesforceRescuesDF = salesforceRescuesDF[salesforceRescuesDF['State__c'] == 'completed']
+
+    # sort by Rescue ID
+    salesforceRescuesDF = salesforceRescuesDF.sort_values(by='Rescue_Id__c')
+    
+    df = pd.read_csv('lastmile_rescues.csv')
+    df['Day of Pickup Start'] = pd.to_datetime(df['Day of Pickup Start'])
+
+    # only completed rescues
+    df = df[df['Rescue State'] == 'completed']
+
+    # sort by Rescue ID
+    df = df.sort_values(by='Rescue ID')
+    
+    adminRescueID = df['Rescue ID']
+    salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
+    
+    if (choose == 1):
+        # print all rescue IDs in Salesforce but not in admin
+        res = salesforceRescueID[~salesforceRescueID.isin(adminRescueID)]
+        print('All rescue IDs that are marked completed in Salesforce but not in the admin tool:')
+    elif (choose == 2):
+        # print all rescue IDs in the admin tool but not in Salesforce
+        res = adminRescueID[~adminRescueID.isin(salesforceRescueID)]
+        print('All rescue IDs that are marked completed in the admin tool but not in Salesforce:')
+    
+    print('Record Count:')
+    print(res.count())
+    return res
+    
