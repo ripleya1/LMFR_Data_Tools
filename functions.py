@@ -48,7 +48,7 @@ def loginToSalesforceSANDBOX(username, password, securityToken):
 # helper function to cleanup whitespace between words in a DF column
 def cleanupNameWhitespace(df, colName):
     for index, row in df.iterrows():
-        df.at[index, colName] = ' '.join(df.at[index, colName].split())
+        df.at[index, colName] = ' '.join(str(df.at[index, colName]).split())
     return df
 
 ### SALESFORCE BULK 2.0 API FUNCTIONS: QUERY AND INGEST
