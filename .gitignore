@@ -2,3 +2,7 @@
 .ipynb_checkpoints
 *.csv
 !Rescues Data Download_9.11.22.csv
+.venv/
+*/*/*/__pycache__/
+*/*/__pycache__/
+*/__pycache__/
