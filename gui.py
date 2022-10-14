@@ -6,11 +6,6 @@ import sys
 
 # creating a class that inherits the QDialog class
 class Window(QDialog):
-
-    file_1 = "File 1"
-    file_2 = "File 2"
-    file_3 = "File 3"
-
     # constructor
     def __init__(self):
         super().__init__()
@@ -25,49 +20,49 @@ class Window(QDialog):
         # set geometry for the window
         self.setGeometry(500, 500, 500, 500)
 
-
-        self.file_picker_group = QGroupBox("File Picker")
-
-        self.text_boxes_group = QGroupBox("Credentials")
-
-        self.radio_buttons_group = QGroupBox("What would you like to do?")
-
-
+        # create forms
         self.create_file_picker_form()
 
-        self.buttonBox = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.create_button_box()
 
-        self.create_text_boxes()
+        self.create_credentials_form()
 
-        self.create_radio_buttons()
+        self.create_what_to_do_form()
 
-        
+        # layout
         mainLayout = QHBoxLayout()
 
         buttonsAndFilePickerLayout = QVBoxLayout()
+        credentialsLayout = QHBoxLayout()
 
-        mainLayout.addWidget(self.text_boxes_group)
-
+        credentialsLayout.addWidget(self.credentials_group)
         buttonsAndFilePickerLayout.addWidget(self.file_picker_group)
+        buttonsAndFilePickerLayout.addWidget(self.what_to_do_group)
+        buttonsAndFilePickerLayout.addWidget(self.buttonBox)
 
-        buttonsAndFilePickerLayout.addWidget(self.radio_buttons_group)
-
-        mainLayout.addChildLayout(buttonsAndFilePickerLayout)
+        mainLayout.addLayout(credentialsLayout)
+        mainLayout.addLayout(buttonsAndFilePickerLayout)
 
         # mainLayout.addWidget(self.buttonBox)
 
         self.setLayout(mainLayout)
 
-    # create form method
     def create_file_picker_form(self):
+        self.file_picker_group = QGroupBox("File Picker")
 
         # creating a form layout
         layout = QFormLayout()
 
-        #Create Puttons
-        file_button_1 = QPushButton(self.file_1)
-        file_button_1.clicked.connect(self.file_picker)
+        self.file1Path = "Choose a file"
+        self.file2Path = "Choose a file"
+        self.file3Path = "Choose a file"
+
+        #Create Buttons
+        file_button_1 = QPushButton(self.file1Path)
+        file_button_1.clicked.connect(
+            lambda: self.file_picker(self.file1Path)
+        )
+
         file_button_2 = QPushButton(self.file_2)
         file_button_2.clicked.connect(self.file_picker)
         file_button_3 = QPushButton(self.file_3)
@@ -75,9 +70,7 @@ class Window(QDialog):
 
         # adding rows
         layout.addRow(file_button_1)
-
         layout.addRow(file_button_2)
-
         layout.addRow(file_button_3)
 
         # setting layout
@@ -90,7 +83,9 @@ class Window(QDialog):
             print(file)
             return file
 
-    def create_text_boxes(self):
+    def create_credentials_form(self):
+        self.credentials_group = QGroupBox("Credentials")
+
         layout = QFormLayout()
         
         email_text_box = QLineEdit(self)
@@ -104,9 +99,11 @@ class Window(QDialog):
         layout.addRow(self.tr("&Password:"), password_text_box)
         layout.addRow(self.tr("&Token:"), token_text_box)
 
-        self.text_boxes_group.setLayout(layout)
+        self.credentials_group.setLayout(layout)
 
-    def create_radio_buttons(self):
+    def create_what_to_do_form(self):
+        self.what_to_do_group = QGroupBox("What would you like to do?")
+
         layout = QFormLayout()
 
         data_upload_button = QRadioButton("Salesforce data upload")
@@ -124,12 +121,18 @@ class Window(QDialog):
         incomplete_data_button.toggled.connect(self.onRadioButtonClick)
         new_salesforce_button.toggled.connect(self.onRadioButtonClick)
 
-        self.radio_buttons_group.setLayout(layout)
+        self.what_to_do_group.setLayout(layout)
 
     def onRadioButtonClick(self):
         button = self.sender()
         if button.isChecked:
             print(button.text())
+
+    def create_button_box(self):
+        self.buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.close)
+        self.buttonBox.rejected.connect(self.reject)
 
 # main method
 if __name__ == '__main__':
