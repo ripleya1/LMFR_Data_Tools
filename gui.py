@@ -35,7 +35,7 @@ class Window(QDialog):
         buttonsAndFilePickerLayout = QVBoxLayout()
         credentialsLayout = QHBoxLayout()
 
-        credentialsLayout.addWidget(self.credentials_group, stretch=2)
+        credentialsLayout.addWidget(self.credentials_group)
         buttonsAndFilePickerLayout.addWidget(self.file_picker_group)
         buttonsAndFilePickerLayout.addWidget(self.what_to_do_group)
         buttonsAndFilePickerLayout.addWidget(self.buttonBox)
@@ -53,20 +53,24 @@ class Window(QDialog):
         # creating a form layout
         self.filePickerLayout = QFormLayout()
 
-        self.fileLabel = "Choose a file"
+        self.fileLabel = ""
 
         #Create Buttons
         self.file_button_1 = QPushButton(self.fileLabel)
         self.file_button_1.clicked.connect(lambda: self.file_picker(self.file_button_1))
-        
+        self.file_button_1.hide()
+
         self.file_button_2 = QPushButton(self.fileLabel)
         self.file_button_2.clicked.connect(lambda: self.file_picker(self.file_button_2))
-        
+        self.file_button_2.hide()
+
         self.file_button_3 = QPushButton(self.fileLabel)
         self.file_button_3.clicked.connect(lambda: self.file_picker(self.file_button_3))
+        self.file_button_3.hide()
 
         self.file_button_4 = QPushButton(self.fileLabel)
         self.file_button_4.clicked.connect(lambda: self.file_picker(self.file_button_4))
+        self.file_button_4.hide()
 
         # adding rows
         self.filePickerLayout.addRow(self.file_button_1)
@@ -141,12 +145,16 @@ class Window(QDialog):
         button = self.sender()
         buttonName = button.text()
         if button.isChecked:
-            print(buttonName)
+            # print(buttonName)
             if buttonName == "Salesforce data upload":
                 self.file_button_1.show()
+                self.file_button_1.setText("Donors report")
                 self.file_button_2.show()
+                self.file_button_2.setText("Nonprofits report")
                 self.file_button_3.show()
+                self.file_button_3.setText("Volunteers report")
                 self.file_button_4.show()
+                self.file_button_4.setText("Rescues report")
             elif buttonName == "Find Salesforce duplicates":
                 self.file_button_1.hide()
                 self.file_button_2.hide()
@@ -154,18 +162,23 @@ class Window(QDialog):
                 self.file_button_4.hide()
             elif buttonName == "Find incomplete rescue data":
                 self.file_button_1.show()
+                self.file_button_1.setText("Rescues report")
                 self.file_button_2.hide()
                 self.file_button_3.hide()
                 self.file_button_4.hide()
             elif buttonName == "Find rescue discrepancies":
                 self.file_button_1.show()
+                self.file_button_1.setText("Rescues report")
                 self.file_button_2.hide()
                 self.file_button_3.hide()
                 self.file_button_4.hide()
             elif buttonName == "Create new Salesforce accounts and contacts":
                 self.file_button_1.show()
+                self.file_button_1.setText("Donors report")
                 self.file_button_2.show()
+                self.file_button_2.setText("Nonprofits report")
                 self.file_button_3.show()
+                self.file_button_3.setText("Volunteers report")
                 self.file_button_4.hide()
 
     def create_button_box(self):
