@@ -35,7 +35,7 @@ class Window(QDialog):
         buttonsAndFilePickerLayout = QVBoxLayout()
         credentialsLayout = QHBoxLayout()
 
-        credentialsLayout.addWidget(self.credentials_group)
+        credentialsLayout.addWidget(self.credentials_group, stretch=2)
         buttonsAndFilePickerLayout.addWidget(self.file_picker_group)
         buttonsAndFilePickerLayout.addWidget(self.what_to_do_group)
         buttonsAndFilePickerLayout.addWidget(self.buttonBox)
@@ -53,35 +53,42 @@ class Window(QDialog):
         # creating a form layout
         layout = QFormLayout()
 
-        self.file1Path = "Choose a file"
-        self.file2Path = "Choose a file"
-        self.file3Path = "Choose a file"
+        self.fileLabel = "Choose a file"
 
         #Create Buttons
-        file_button_1 = QPushButton(self.file1Path)
-        file_button_1.clicked.connect(
-            lambda: self.file_picker(self.file1Path)
-        )
+        file_button_1 = QPushButton(self.fileLabel)
+        file_button_1.clicked.connect(lambda: self.file_picker(file_button_1))
+        
+        file_button_2 = QPushButton(self.fileLabel)
+        file_button_2.clicked.connect(lambda: self.file_picker(file_button_2))
+        
+        file_button_3 = QPushButton(self.fileLabel)
+        file_button_3.clicked.connect(lambda: self.file_picker(file_button_3))
 
-        file_button_2 = QPushButton(self.file_2)
-        file_button_2.clicked.connect(self.file_picker)
-        file_button_3 = QPushButton(self.file_3)
-        file_button_3.clicked.connect(self.file_picker)
+        file_button_4 = QPushButton(self.fileLabel)
+        file_button_4.clicked.connect(lambda: self.file_picker(file_button_4))
 
         # adding rows
         layout.addRow(file_button_1)
         layout.addRow(file_button_2)
         layout.addRow(file_button_3)
+        layout.addRow(file_button_4)
 
         # setting layout
         self.file_picker_group.setLayout(layout)
 
-    def file_picker(self):
+    def file_picker(self, button: QPushButton = None):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
                                                 "", "CSV File (*.csv)")
         if check:
             print(file)
+            if button is not None:
+                button.setText(self.getFileNameFromPath(file))
             return file
+
+    def getFileNameFromPath(self, path):
+        path = path[::-1] # reverse string
+        return path[0:path.index("/")][::-1] # substring from last occurrance of / and reverse string again
 
     def create_credentials_form(self):
         self.credentials_group = QGroupBox("Credentials")
@@ -95,6 +102,10 @@ class Window(QDialog):
         password_text_box.setEchoMode(QLineEdit.Password)
         token_text_box.setEchoMode(QLineEdit.Password)
 
+        email_text_box.setMinimumWidth(175)
+        password_text_box.setMinimumWidth(175)
+        token_text_box.setMinimumWidth(175)
+
         layout.addRow(self.tr("&Email:"), email_text_box)
         layout.addRow(self.tr("&Password:"), password_text_box)
         layout.addRow(self.tr("&Token:"), token_text_box)
@@ -106,19 +117,22 @@ class Window(QDialog):
 
         layout = QFormLayout()
 
-        data_upload_button = QRadioButton("Salesforce data upload")
-        salesforce_dupes_button = QRadioButton("Find Salesforce duplicates")
-        incomplete_data_button = QRadioButton("Find incomplete rescue data")
-        new_salesforce_button = QRadioButton("Create new Salesforce accounts and contacts")
+        data_upload_button = QRadioButton("Salesforce data upload") # 4 files
+        salesforce_dupes_button = QRadioButton("Find Salesforce duplicates") # 0 files
+        incomplete_data_button = QRadioButton("Find incomplete rescue data") # 1 file
+        rescue_discrepancies_button = QRadioButton("Find rescue discrepancies") # 1 file
+        new_salesforce_button = QRadioButton("Create new Salesforce accounts and contacts") # 3 files
 
         layout.addRow(data_upload_button)
         layout.addRow(salesforce_dupes_button)
         layout.addRow(incomplete_data_button)
+        layout.addRow(rescue_discrepancies_button)
         layout.addRow(new_salesforce_button)
 
         data_upload_button.toggled.connect(self.onRadioButtonClick)
         salesforce_dupes_button.toggled.connect(self.onRadioButtonClick)
         incomplete_data_button.toggled.connect(self.onRadioButtonClick)
+        rescue_discrepancies_button.toggled.connect(self.onRadioButtonClick)
         new_salesforce_button.toggled.connect(self.onRadioButtonClick)
 
         self.what_to_do_group.setLayout(layout)
