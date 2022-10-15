@@ -51,31 +51,31 @@ class Window(QDialog):
         self.file_picker_group = QGroupBox("File Picker")
 
         # creating a form layout
-        layout = QFormLayout()
+        self.filePickerLayout = QFormLayout()
 
         self.fileLabel = "Choose a file"
 
         #Create Buttons
-        file_button_1 = QPushButton(self.fileLabel)
-        file_button_1.clicked.connect(lambda: self.file_picker(file_button_1))
+        self.file_button_1 = QPushButton(self.fileLabel)
+        self.file_button_1.clicked.connect(lambda: self.file_picker(self.file_button_1))
         
-        file_button_2 = QPushButton(self.fileLabel)
-        file_button_2.clicked.connect(lambda: self.file_picker(file_button_2))
+        self.file_button_2 = QPushButton(self.fileLabel)
+        self.file_button_2.clicked.connect(lambda: self.file_picker(self.file_button_2))
         
-        file_button_3 = QPushButton(self.fileLabel)
-        file_button_3.clicked.connect(lambda: self.file_picker(file_button_3))
+        self.file_button_3 = QPushButton(self.fileLabel)
+        self.file_button_3.clicked.connect(lambda: self.file_picker(self.file_button_3))
 
-        file_button_4 = QPushButton(self.fileLabel)
-        file_button_4.clicked.connect(lambda: self.file_picker(file_button_4))
+        self.file_button_4 = QPushButton(self.fileLabel)
+        self.file_button_4.clicked.connect(lambda: self.file_picker(self.file_button_4))
 
         # adding rows
-        layout.addRow(file_button_1)
-        layout.addRow(file_button_2)
-        layout.addRow(file_button_3)
-        layout.addRow(file_button_4)
+        self.filePickerLayout.addRow(self.file_button_1)
+        self.filePickerLayout.addRow(self.file_button_2)
+        self.filePickerLayout.addRow(self.file_button_3)
+        self.filePickerLayout.addRow(self.file_button_4)
 
         # setting layout
-        self.file_picker_group.setLayout(layout)
+        self.file_picker_group.setLayout(self.filePickerLayout)
 
     def file_picker(self, button: QPushButton = None):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
@@ -139,8 +139,34 @@ class Window(QDialog):
 
     def onRadioButtonClick(self):
         button = self.sender()
+        buttonName = button.text()
         if button.isChecked:
-            print(button.text())
+            print(buttonName)
+            if buttonName == "Salesforce data upload":
+                self.file_button_1.show()
+                self.file_button_2.show()
+                self.file_button_3.show()
+                self.file_button_4.show()
+            elif buttonName == "Find Salesforce duplicates":
+                self.file_button_1.hide()
+                self.file_button_2.hide()
+                self.file_button_3.hide()
+                self.file_button_4.hide()
+            elif buttonName == "Find incomplete rescue data":
+                self.file_button_1.show()
+                self.file_button_2.hide()
+                self.file_button_3.hide()
+                self.file_button_4.hide()
+            elif buttonName == "Find rescue discrepancies":
+                self.file_button_1.show()
+                self.file_button_2.hide()
+                self.file_button_3.hide()
+                self.file_button_4.hide()
+            elif buttonName == "Create new Salesforce accounts and contacts":
+                self.file_button_1.show()
+                self.file_button_2.show()
+                self.file_button_3.show()
+                self.file_button_4.hide()
 
     def create_button_box(self):
         self.buttonBox = QDialogButtonBox(
