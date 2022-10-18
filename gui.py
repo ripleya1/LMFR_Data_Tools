@@ -21,13 +21,13 @@ class Window(QDialog):
         self.setGeometry(500, 500, 500, 500)
 
         # create forms
-        self.create_file_picker_form()
+        self.createFilePickerForm()
 
-        self.create_button_box()
+        self.createButtonBox()
 
-        self.create_credentials_form()
+        self.createCredentialsForm()
 
-        self.create_what_to_do_form()
+        self.createWhatToDoForm()
 
         # layout
         mainLayout = QHBoxLayout()
@@ -35,9 +35,9 @@ class Window(QDialog):
         buttonsAndFilePickerLayout = QVBoxLayout()
         credentialsLayout = QHBoxLayout()
 
-        credentialsLayout.addWidget(self.credentials_group)
-        buttonsAndFilePickerLayout.addWidget(self.file_picker_group)
-        buttonsAndFilePickerLayout.addWidget(self.what_to_do_group)
+        credentialsLayout.addWidget(self.credentialsGroup)
+        buttonsAndFilePickerLayout.addWidget(self.filePickerGroup)
+        buttonsAndFilePickerLayout.addWidget(self.whatToDoGroup)
         buttonsAndFilePickerLayout.addWidget(self.buttonBox)
 
         mainLayout.addLayout(credentialsLayout)
@@ -47,8 +47,8 @@ class Window(QDialog):
 
         self.setLayout(mainLayout)
 
-    def create_file_picker_form(self):
-        self.file_picker_group = QGroupBox("File Picker")
+    def createFilePickerForm(self):
+        self.filePickerGroup = QGroupBox("File Picker")
 
         # creating a form layout
         self.filePickerLayout = QFormLayout()
@@ -56,32 +56,32 @@ class Window(QDialog):
         self.fileLabel = ""
 
         #Create Buttons
-        self.file_button_1 = QPushButton(self.fileLabel)
-        self.file_button_1.clicked.connect(lambda: self.file_picker(self.file_button_1))
-        self.file_button_1.hide()
+        self.fileButton1 = QPushButton(self.fileLabel)
+        self.fileButton1.clicked.connect(lambda: self.filePicker(self.fileButton1))
+        self.fileButton1.hide()
 
-        self.file_button_2 = QPushButton(self.fileLabel)
-        self.file_button_2.clicked.connect(lambda: self.file_picker(self.file_button_2))
-        self.file_button_2.hide()
+        self.fileButton2 = QPushButton(self.fileLabel)
+        self.fileButton2.clicked.connect(lambda: self.filePicker(self.fileButton2))
+        self.fileButton2.hide()
 
-        self.file_button_3 = QPushButton(self.fileLabel)
-        self.file_button_3.clicked.connect(lambda: self.file_picker(self.file_button_3))
-        self.file_button_3.hide()
+        self.fileButton3 = QPushButton(self.fileLabel)
+        self.fileButton3.clicked.connect(lambda: self.filePicker(self.fileButton3))
+        self.fileButton3.hide()
 
-        self.file_button_4 = QPushButton(self.fileLabel)
-        self.file_button_4.clicked.connect(lambda: self.file_picker(self.file_button_4))
-        self.file_button_4.hide()
+        self.fileButton4 = QPushButton(self.fileLabel)
+        self.fileButton4.clicked.connect(lambda: self.filePicker(self.fileButton4))
+        self.fileButton4.hide()
 
         # adding rows
-        self.filePickerLayout.addRow(self.file_button_1)
-        self.filePickerLayout.addRow(self.file_button_2)
-        self.filePickerLayout.addRow(self.file_button_3)
-        self.filePickerLayout.addRow(self.file_button_4)
+        self.filePickerLayout.addRow(self.fileButton1)
+        self.filePickerLayout.addRow(self.fileButton2)
+        self.filePickerLayout.addRow(self.fileButton3)
+        self.filePickerLayout.addRow(self.fileButton4)
 
         # setting layout
-        self.file_picker_group.setLayout(self.filePickerLayout)
+        self.filePickerGroup.setLayout(self.filePickerLayout)
 
-    def file_picker(self, button: QPushButton = None):
+    def filePicker(self, button: QPushButton = None):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
                                                 "", "CSV File (*.csv)")
         if check:
@@ -94,98 +94,100 @@ class Window(QDialog):
         path = path[::-1] # reverse string
         return path[0:path.index("/")][::-1] # substring from last occurrance of / and reverse string again
 
-    def create_credentials_form(self):
-        self.credentials_group = QGroupBox("Credentials")
+    def createCredentialsForm(self):
+        self.credentialsGroup = QGroupBox("Credentials")
 
         layout = QFormLayout()
         
-        email_text_box = QLineEdit(self)
-        password_text_box = QLineEdit(self)
-        token_text_box = QLineEdit(self)
+        emailTextBox = QLineEdit(self)
+        passwordTextBox = QLineEdit(self)
+        tokenTextBox = QLineEdit(self)
 
-        password_text_box.setEchoMode(QLineEdit.Password)
-        token_text_box.setEchoMode(QLineEdit.Password)
+        passwordTextBox.setEchoMode(QLineEdit.Password)
+        tokenTextBox.setEchoMode(QLineEdit.Password)
 
-        email_text_box.setMinimumWidth(175)
-        password_text_box.setMinimumWidth(175)
-        token_text_box.setMinimumWidth(175)
+        emailTextBox.setMinimumWidth(175)
+        passwordTextBox.setMinimumWidth(175)
+        tokenTextBox.setMinimumWidth(175)
 
-        layout.addRow(self.tr("&Email:"), email_text_box)
-        layout.addRow(self.tr("&Password:"), password_text_box)
-        layout.addRow(self.tr("&Token:"), token_text_box)
+        layout.addRow(self.tr("&Email:"), emailTextBox)
+        layout.addRow(self.tr("&Password:"), passwordTextBox)
+        layout.addRow(self.tr("&Token:"), tokenTextBox)
 
-        self.credentials_group.setLayout(layout)
+        self.credentialsGroup.setLayout(layout)
 
-    def create_what_to_do_form(self):
-        self.what_to_do_group = QGroupBox("What would you like to do?")
+    def createWhatToDoForm(self):
+        self.whatToDoGroup = QGroupBox("What would you like to do?")
 
         layout = QFormLayout()
 
-        data_upload_button = QRadioButton("Salesforce data upload") # 4 files
-        salesforce_dupes_button = QRadioButton("Find Salesforce duplicates") # 0 files
-        incomplete_data_button = QRadioButton("Find incomplete rescue data") # 1 file
-        rescue_discrepancies_button = QRadioButton("Find rescue discrepancies") # 1 file
-        new_salesforce_button = QRadioButton("Create new Salesforce accounts and contacts") # 3 files
+        dataUploadButton = QRadioButton("Salesforce data upload") # 4 files
+        salesforceDupesButton = QRadioButton("Find Salesforce duplicates") # 0 files
+        incompleteDataButton = QRadioButton("Find incomplete rescue data") # 1 file
+        rescueDiscrepanciesButton = QRadioButton("Find rescue discrepancies") # 1 file
+        newSalesforceButton = QRadioButton("Create new Salesforce accounts and contacts") # 3 files
 
-        layout.addRow(data_upload_button)
-        layout.addRow(salesforce_dupes_button)
-        layout.addRow(incomplete_data_button)
-        layout.addRow(rescue_discrepancies_button)
-        layout.addRow(new_salesforce_button)
+        layout.addRow(dataUploadButton)
+        layout.addRow(salesforceDupesButton)
+        layout.addRow(incompleteDataButton)
+        layout.addRow(rescueDiscrepanciesButton)
+        layout.addRow(newSalesforceButton)
 
-        data_upload_button.toggled.connect(self.onRadioButtonClick)
-        salesforce_dupes_button.toggled.connect(self.onRadioButtonClick)
-        incomplete_data_button.toggled.connect(self.onRadioButtonClick)
-        rescue_discrepancies_button.toggled.connect(self.onRadioButtonClick)
-        new_salesforce_button.toggled.connect(self.onRadioButtonClick)
+        dataUploadButton.toggled.connect(self.onRadioButtonClick)
+        salesforceDupesButton.toggled.connect(self.onRadioButtonClick)
+        incompleteDataButton.toggled.connect(self.onRadioButtonClick)
+        rescueDiscrepanciesButton.toggled.connect(self.onRadioButtonClick)
+        newSalesforceButton.toggled.connect(self.onRadioButtonClick)
 
-        self.what_to_do_group.setLayout(layout)
+        self.whatToDoGroup.setLayout(layout)
 
     def onRadioButtonClick(self):
         button = self.sender()
         buttonName = button.text()
         if button.isChecked:
-            # print(buttonName)
             if buttonName == "Salesforce data upload":
-                self.file_button_1.show()
-                self.file_button_1.setText("Donors report")
-                self.file_button_2.show()
-                self.file_button_2.setText("Nonprofits report")
-                self.file_button_3.show()
-                self.file_button_3.setText("Volunteers report")
-                self.file_button_4.show()
-                self.file_button_4.setText("Rescues report")
+                self.fileButton1.show()
+                self.fileButton1.setText("Donors report")
+                self.fileButton2.show()
+                self.fileButton2.setText("Nonprofits report")
+                self.fileButton3.show()
+                self.fileButton3.setText("Volunteers report")
+                self.fileButton4.show()
+                self.fileButton4.setText("Rescues report")
             elif buttonName == "Find Salesforce duplicates":
-                self.file_button_1.hide()
-                self.file_button_2.hide()
-                self.file_button_3.hide()
-                self.file_button_4.hide()
+                self.fileButton1.hide()
+                self.fileButton2.hide()
+                self.fileButton3.hide()
+                self.fileButton4.hide()
             elif buttonName == "Find incomplete rescue data":
-                self.file_button_1.show()
-                self.file_button_1.setText("Rescues report")
-                self.file_button_2.hide()
-                self.file_button_3.hide()
-                self.file_button_4.hide()
+                self.fileButton1.show()
+                self.fileButton1.setText("Rescues report")
+                self.fileButton2.hide()
+                self.fileButton3.hide()
+                self.fileButton4.hide()
             elif buttonName == "Find rescue discrepancies":
-                self.file_button_1.show()
-                self.file_button_1.setText("Rescues report")
-                self.file_button_2.hide()
-                self.file_button_3.hide()
-                self.file_button_4.hide()
+                self.fileButton1.show()
+                self.fileButton1.setText("Rescues report")
+                self.fileButton2.hide()
+                self.fileButton3.hide()
+                self.fileButton4.hide()
             elif buttonName == "Create new Salesforce accounts and contacts":
-                self.file_button_1.show()
-                self.file_button_1.setText("Donors report")
-                self.file_button_2.show()
-                self.file_button_2.setText("Nonprofits report")
-                self.file_button_3.show()
-                self.file_button_3.setText("Volunteers report")
-                self.file_button_4.hide()
+                self.fileButton1.show()
+                self.fileButton1.setText("Donors report")
+                self.fileButton2.show()
+                self.fileButton2.setText("Nonprofits report")
+                self.fileButton3.show()
+                self.fileButton3.setText("Volunteers report")
+                self.fileButton4.hide()
 
-    def create_button_box(self):
+    def createButtonBox(self):
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.close)
         self.buttonBox.rejected.connect(self.reject)
+
+    # def checkEnd(self):
+
 
 # main method
 if __name__ == '__main__':
