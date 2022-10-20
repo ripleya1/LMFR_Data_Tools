@@ -182,6 +182,9 @@ class Window(QDialog):
         self.buttonBox.accepted.connect(self.close)
         self.buttonBox.rejected.connect(self.reject)
 
+    # def checkEnd(self):
+
+
 # main method
 if __name__ == '__main__':
 
