@@ -7,6 +7,7 @@ import json
 import math
 import time
 import sys
+import configparser
 
 ### AUTH FUNCTIONS
 
@@ -532,3 +533,9 @@ def findRescueDiscrepancies(session, uri, choose):
     print(res.count())
     return res
     
+
+
+def get_config_value(section, key):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    return config[section][key]
