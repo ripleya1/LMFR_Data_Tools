@@ -184,6 +184,15 @@ class Window(QDialog):
 
     # def checkEnd(self):
 
+    # need to add clearing of file picker when switching what to do selection
+    # def checkFilePickersLoaded(self):
+        # check that all filepickers have files loaded
+        # 
+
+    # def endStuff(self):
+        # check credentials
+        # run functions
+        # return errors in dialog box (?)
 
 # main method
 if __name__ == '__main__':
