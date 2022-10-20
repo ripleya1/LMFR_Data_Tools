@@ -2,8 +2,6 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 import sys
 
-# https://doc.qt.io/qtforpython/overviews/layout.html 
-
 # creating a class that inherits the QDialog class
 class Window(QDialog):
     # constructor
@@ -42,8 +40,6 @@ class Window(QDialog):
 
         mainLayout.addLayout(credentialsLayout)
         mainLayout.addLayout(buttonsAndFilePickerLayout)
-
-        # mainLayout.addWidget(self.buttonBox)
 
         self.setLayout(mainLayout)
 
@@ -185,9 +181,6 @@ class Window(QDialog):
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.close)
         self.buttonBox.rejected.connect(self.reject)
-
-    # def checkEnd(self):
-
 
 # main method
 if __name__ == '__main__':
