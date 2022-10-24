@@ -93,7 +93,6 @@ class Window(QDialog):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
                                                   "", "CSV File (*.csv)")
         if check:
-            # print(file)
             if button is not None:
                 button.setText(self.getFileNameFromPath(file))
             if button == self.fileButton1:
@@ -109,7 +108,8 @@ class Window(QDialog):
             return ""
 
     def getFileNameFromPath(self, path):
-        path = path[::-1]  # reverse string
+        # reverse string
+        path = path[::-1]
         # substring from last occurrance of / and reverse string again
         return path[0:path.index("/")][::-1]
 
@@ -118,6 +118,7 @@ class Window(QDialog):
 
         layout = QFormLayout()
 
+        # add text boxes
         emailTextBox = QLineEdit(self)
         passwordTextBox = QLineEdit(self)
         tokenTextBox = QLineEdit(self)
@@ -125,6 +126,7 @@ class Window(QDialog):
         passwordTextBox.setEchoMode(QLineEdit.Password)
         tokenTextBox.setEchoMode(QLineEdit.Password)
 
+        # set minimum widths
         emailTextBox.setMinimumWidth(175)
         passwordTextBox.setMinimumWidth(175)
         tokenTextBox.setMinimumWidth(175)
@@ -167,6 +169,8 @@ class Window(QDialog):
     def onRadioButtonClick(self):
         button = self.sender()
         buttonName = button.text()
+        
+        # update button displays
         if button.isChecked:
             self.file1Str, self.file2Str, self.file3Str, self.file4Str = "", "", "", ""
             if buttonName == "Salesforce data upload":
@@ -215,7 +219,7 @@ class Window(QDialog):
         self.buttonBox.accepted.connect(self.endStuff)
         self.buttonBox.rejected.connect(self.reject)
 
-    # need to add clearing of file picker when switching what to do selection
+    # TODO: maybe check the actual files (ex rescue data) as opposed to the buttons?
     def checkFilePickersLoaded(self):
         # check that all filepickers have files loaded
         if self.whatToDoStr == "Salesforce data upload":  # 4
@@ -236,6 +240,7 @@ class Window(QDialog):
             else:
                 return True
 
+    # TODO: implement
     def checkCredentials(self):
         return True
 
@@ -246,12 +251,12 @@ class Window(QDialog):
         if not self.checkCredentials():
             self.createDialogBox(
                 "ERROR: Credentials invalid. Please check your credentials.")
-        # check credentials
-        # run functions
-        # return errors in dialog box (?) use try catch
+        # TODO: run functions
+        # TODO: return errors in dialog box (?) use try catch
 
     def createDialogBox(self, message):
         dialog = QMessageBox.about(self, "Alert", message)
+        return dialog
 
 
 # main method
