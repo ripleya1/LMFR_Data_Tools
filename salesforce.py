@@ -5,6 +5,7 @@ from io import StringIO
 import requests
 import pandas as pd
 from zeep import Client
+import functions
 
 
 def loginToSalesforce(username, password, securityToken):
@@ -44,11 +45,12 @@ def loginToSalesforceSANDBOX(username, password, securityToken, clientId, client
     return session
 
 
-def getDataframeFromSalesforce(query, session, uri):
+def getDataframeFromSalesforce(query, session):
     """
     SALESFORCE BULK 2.0 API FUNCTIONS: QUERY AND INGEST
     function to query Salesforce and return a Pandas Dataframe
     """
+    uri = functions.getConfigValue('GeneralConfiguration', 'uri')
     session.headers.update({'Content-Type': 'application/json;charset=utf-8'})
 
     # create a job to query all Account records
@@ -56,7 +58,7 @@ def getDataframeFromSalesforce(query, session, uri):
         "operation": "query",
         "query": query,
     })
-    response = session.post(uri+'query', data=data)
+    response = session.post(uri + 'query', data=data)
 
     if response.status_code == 200:
         print('Query job created.')
@@ -86,10 +88,12 @@ def getDataframeFromSalesforce(query, session, uri):
     df = pd.read_csv(data)
     return df
 
-def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
+def executeSalesforceIngestJob(operation, importData, objectType, session):
     """
     function to create and execute a Salesforce bulk upload or delete job
     """
+    uri = functions.getConfigValue('GeneralConfiguration', 'uri')
+
     # create data import job
     data = json.dumps({
         "operation": operation,
