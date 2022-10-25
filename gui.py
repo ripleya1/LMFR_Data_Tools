@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 import functions
+import salesforce
+from pandas import set_option
 import sys
 
 # creating a class that inherits the QDialog class
@@ -10,6 +12,8 @@ class Window(QDialog):
     # constructor
     def __init__(self):
         super().__init__()
+
+        self.uri = "https://lastmilefood.my.salesforce.com/services/data/v52.0/jobs/"
 
         self.whatToDoStr = ""
         self.file1Str = ""
@@ -243,8 +247,13 @@ class Window(QDialog):
 
     # TODO: implement
     def checkCredentials(self):
-        session = functions.loginToSalesforce(self.emailTextBox.text(), self.passwordTextBox.text(), self.tokenTextBox.text())
+        session = salesforce.loginToSalesforce(self.emailTextBox.text(), self.passwordTextBox.text(), self.tokenTextBox.text())
         return True, session
+
+    def getDataframes(self, session):
+        salesforceAccountsDF = functions.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, self.uri) 
+        salesforceContactsDF = functions.getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session, self.uri)
+        return salesforceAccountsDF, salesforceContactsDF
 
     def endStuff(self):
         if not self.checkFilePickersLoaded():
@@ -256,7 +265,38 @@ class Window(QDialog):
             self.createDialogBox(
                 "ERROR: Credentials invalid. Please check your credentials.")
             return
-        # TODO: run functions
+        # run functions
+        # TODO: maybe add the dataframes and session as instance variables so we don't have to get them every time?
+        # TODO: check order of file strs in args
+        if self.whatToDoStr == "Salesforce data upload":  # 4       
+            accountsDF, contactsDF = self.getDataframes(session)   
+            functions.uploadDataToSalesforce(
+                accountsDF,                
+                contactsDF,
+                session, 
+                self.uri,
+                self.file1Str,
+                self.file2Str,
+                self.file3Str,
+                self.file4Str
+            )
+        elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
+            accountsDF, contactsDF = self.getDataframes(session)   
+            functions.findDuplicateFoodDonors(accountsDF)
+            functions.findDuplicateNonprofitPartners(accountsDF)
+            functions.findDuplicateVolunteers(contactsDF)
+        elif self.whatToDoStr == "Find incomplete rescue data": # 1
+            set_option('display.max_colwidth', None)
+            functions.findIncompleteRescues(self.file1Str)
+        elif self.whatToDoStr == "Find rescue discrepancies":  # 1
+            # TODO: need to figure out how to display the print messages
+           functions.findRescueDiscrepancies(session, self.uri, 1, self.file1Str)
+           functions.findRescueDiscrepancies(session, self.uri, 2, self.file1Str)
+        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
+            accountsDF, contactsDF = self.getDataframes(session)   
+            functions.uploadFoodDonors(accountsDF, session, self.uri, self.file1Str)
+            functions.uploadNonprofitPartners(accountsDF, session, self.uri, self.file2Str)
+            functions.uploadVolunteers(contactsDF, session, self.uri, self.file3Str)
         # TODO: return errors in dialog box (?) use try catch
 
     def createDialogBox(self, message):
