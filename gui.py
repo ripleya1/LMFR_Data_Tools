@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
+import functions
 import sys
 
 # creating a class that inherits the QDialog class
@@ -119,21 +120,21 @@ class Window(QDialog):
         layout = QFormLayout()
 
         # add text boxes
-        emailTextBox = QLineEdit(self)
-        passwordTextBox = QLineEdit(self)
-        tokenTextBox = QLineEdit(self)
+        self.emailTextBox = QLineEdit(self)
+        self.passwordTextBox = QLineEdit(self)
+        self.tokenTextBox = QLineEdit(self)
 
-        passwordTextBox.setEchoMode(QLineEdit.Password)
-        tokenTextBox.setEchoMode(QLineEdit.Password)
+        self.passwordTextBox.setEchoMode(QLineEdit.Password)
+        self.tokenTextBox.setEchoMode(QLineEdit.Password)
 
         # set minimum widths
-        emailTextBox.setMinimumWidth(175)
-        passwordTextBox.setMinimumWidth(175)
-        tokenTextBox.setMinimumWidth(175)
+        self.emailTextBox.setMinimumWidth(175)
+        self.passwordTextBox.setMinimumWidth(175)
+        self.tokenTextBox.setMinimumWidth(175)
 
-        layout.addRow(self.tr("&Email:"), emailTextBox)
-        layout.addRow(self.tr("&Password:"), passwordTextBox)
-        layout.addRow(self.tr("&Token:"), tokenTextBox)
+        layout.addRow(self.tr("&Email:"), self.emailTextBox)
+        layout.addRow(self.tr("&Password:"), self.passwordTextBox)
+        layout.addRow(self.tr("&Token:"), self.tokenTextBox)
 
         self.credentialsGroup.setLayout(layout)
 
@@ -219,9 +220,9 @@ class Window(QDialog):
         self.buttonBox.accepted.connect(self.endStuff)
         self.buttonBox.rejected.connect(self.reject)
 
-    # TODO: maybe check the actual files (ex rescue data) as opposed to the buttons?
     def checkFilePickersLoaded(self):
         # check that all filepickers have files loaded
+        # TODO: maybe check the actual files (ex rescue data) as opposed to the buttons?
         if self.whatToDoStr == "Salesforce data upload":  # 4
             if self.file1Str or self.file2Str or self.file3Str or self.file4Str == "":
                 return False
@@ -242,15 +243,19 @@ class Window(QDialog):
 
     # TODO: implement
     def checkCredentials(self):
-        return True
+        session = functions.loginToSalesforce(self.emailTextBox.text(), self.passwordTextBox.text(), self.tokenTextBox.text())
+        return True, session
 
     def endStuff(self):
         if not self.checkFilePickersLoaded():
             self.createDialogBox(
                 "ERROR: Files are not loaded. Please load files.")
-        if not self.checkCredentials():
+            return
+        validCredentials, session = self.checkCredentials()
+        if not validCredentials:
             self.createDialogBox(
                 "ERROR: Credentials invalid. Please check your credentials.")
+            return
         # TODO: run functions
         # TODO: return errors in dialog box (?) use try catch
 
