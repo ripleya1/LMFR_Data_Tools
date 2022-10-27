@@ -4,6 +4,7 @@ import functions
 import salesforce
 from pandas import set_option
 import sys
+import requests
 
 # creating a class that inherits the QDialog class
 
@@ -147,15 +148,15 @@ class Window(QDialog):
 
         layout = QFormLayout()
 
-        dataUploadButton = QRadioButton("Salesforce data upload")  # 4 files
+        dataUploadButton = QRadioButton("Salesforce data upload")
         salesforceDupesButton = QRadioButton(
-            "Find Salesforce duplicates")  # 0 files
+            "Find Salesforce duplicates")
         incompleteDataButton = QRadioButton(
-            "Find incomplete rescue data")  # 1 file
+            "Find incomplete rescue data")
         rescueDiscrepanciesButton = QRadioButton(
-            "Find rescue discrepancies")  # 1 file
+            "Find rescue discrepancies")
         newSalesforceButton = QRadioButton(
-            "Create new Salesforce accounts and contacts")  # 3 files
+            "Create new Salesforce accounts and contacts")
 
         layout.addRow(dataUploadButton)
         layout.addRow(salesforceDupesButton)
@@ -174,13 +175,14 @@ class Window(QDialog):
     def onRadioButtonClick(self):
         button = self.sender()
         buttonName = button.text()
-        
+
         # update button displays
         if button.isChecked:
             # filename on button box persists
             if buttonName == "Salesforce data upload":
                 self.whatToDoStr = "Salesforce data upload"
-                self.updateButtonText([self.donorsButton, self.nonprofitsButton, self.volunteersButton, self.rescuesButton])
+                self.updateButtonText(
+                    [self.donorsButton, self.nonprofitsButton, self.volunteersButton, self.rescuesButton])
                 self.donorsButton.show()
                 self.nonprofitsButton.show()
                 self.volunteersButton.show()
@@ -192,7 +194,6 @@ class Window(QDialog):
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Find incomplete rescue data":
-                # rescues
                 self.whatToDoStr = "Find incomplete rescue data"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
@@ -200,7 +201,6 @@ class Window(QDialog):
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Find rescue discrepancies":
-                # rescues
                 self.whatToDoStr = "Find rescue discrepancies"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
@@ -209,8 +209,8 @@ class Window(QDialog):
                 self.volunteersButton.hide()
             elif buttonName == "Create new Salesforce accounts and contacts":
                 self.whatToDoStr = "Create new Salesforce accounts and contacts"
-                # donors, nonprofits, volunteers
-                self.updateButtonText([self.donorsButton, self.nonprofitsButton, self.volunteersButton])
+                self.updateButtonText(
+                    [self.donorsButton, self.nonprofitsButton, self.volunteersButton])
                 self.rescuesButton.hide()
                 self.donorsButton.show()
                 self.nonprofitsButton.show()
@@ -222,22 +222,26 @@ class Window(QDialog):
                 if self.rescuesFileStr == "":
                     self.rescuesButton.setText("Rescues report")
                 else:
-                    self.rescuesButton.setText(self.getFileNameFromPath(self.rescuesFileStr))
+                    self.rescuesButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
             elif button == self.donorsButton:
                 if self.donorsFileStr == "":
                     self.donorsButton.setText("Donors report")
                 else:
-                    self.donorsButton.setText(self.getFileNameFromPath(self.rescuesFileStr))
+                    self.donorsButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
             elif button == self.nonprofitsButton:
                 if self.nonprofitsFileStr == "":
                     self.nonprofitsButton.setText("Nonprofits report")
                 else:
-                    self.nonprofitsButton.setText(self.getFileNameFromPath(self.rescuesFileStr))
+                    self.nonprofitsButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
             elif button == self.volunteersButton:
                 if self.volunteersFileStr == "":
                     self.volunteersButton.setText("Volunteers report")
                 else:
-                    self.volunteersButton.setText(self.getFileNameFromPath(self.rescuesFileStr))
+                    self.volunteersButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
 
     def createButtonBox(self):
         self.buttonBox = QDialogButtonBox(
@@ -267,58 +271,70 @@ class Window(QDialog):
 
     def checkCredentials(self):
         try:
-            session = salesforce.loginToSalesforce(self.emailTextBox.text(), self.passwordTextBox.text(), self.tokenTextBox.text())
+            session = salesforce.loginToSalesforce(self.emailTextBox.text(
+            ), self.passwordTextBox.text(), self.tokenTextBox.text())
             return True, session
-        except: 
-            return False
+        except:
+            self.createDialogBox(
+                "ERROR: Credentials invalid. Please check your credentials.")
+            return False, requests.Session()
 
     def getDataframes(self, session):
-        salesforceAccountsDF = functions.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session, self.uri) 
-        salesforceContactsDF = functions.getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session, self.uri)
-        return salesforceAccountsDF, salesforceContactsDF
+        accountsDF = salesforce.getDataframeFromSalesforce(
+            'SELECT Id, Name, RecordTypeId FROM Account', session, self.uri)
+        contactsDF = salesforce.getDataframeFromSalesforce(
+            'SELECT Id, Name, AccountId FROM Contact', session, self.uri)
+        return accountsDF, contactsDF
 
     def endStuff(self):
         if not self.checkFilePickersLoaded():
             self.createDialogBox(
                 "ERROR: Files are not loaded. Please load files.")
-            pass
-        # TODO: only check credentials if the function selected uses them
-        validCredentials, session = self.checkCredentials()
-        if not validCredentials:
-            self.createDialogBox(
-                "ERROR: Credentials invalid. Please check your credentials.")
-            pass
+            return
         # run functions
-        # TODO: maybe add the dataframes and session as instance variables so we don't have to get them every time?
-        if self.whatToDoStr == "Salesforce data upload":  # 4       
-            accountsDF, contactsDF = self.getDataframes(session)   
-            functions.uploadDataToSalesforce(
-                accountsDF,                
-                contactsDF,
-                session, 
-                self.uri,
-                self.rescuesFileStr,
-                self.donorsFileStr,
-                self.nonprofitsFileStr,
-                self.volunteersFileStr
-            )
-        elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
-            accountsDF, contactsDF = self.getDataframes(session)   
-            functions.findDuplicateFoodDonors(accountsDF)
-            functions.findDuplicateNonprofitPartners(accountsDF)
-            functions.findDuplicateVolunteers(contactsDF)
-        elif self.whatToDoStr == "Find incomplete rescue data": # 1
+        # only checks credentials if the function selected uses them
+        if self.whatToDoStr == "Salesforce data upload":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                accountsDF, contactsDF = self.getDataframes(session)
+                functions.uploadDataToSalesforce(
+                    accountsDF,
+                    contactsDF,
+                    session,
+                    self.uri,
+                    self.donorsFileStr,
+                    self.nonprofitsFileStr,
+                    self.volunteersFileStr,
+                    self.rescuesFileStr
+                )
+        elif self.whatToDoStr == "Find Salesforce duplicates":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                accountsDF, contactsDF = self.getDataframes(session)
+                functions.findDuplicateFoodDonors(accountsDF)
+                functions.findDuplicateNonprofitPartners(accountsDF)
+                functions.findDuplicateVolunteers(contactsDF)
+        elif self.whatToDoStr == "Find incomplete rescue data":
             set_option('display.max_colwidth', None)
             functions.findIncompleteRescues(self.rescuesFileStr)
-        elif self.whatToDoStr == "Find rescue discrepancies":  # 1
-            # TODO: need to figure out how to display the print messages
-           functions.findRescueDiscrepancies(session, self.uri, 1, self.rescuesFileStr)
-           functions.findRescueDiscrepancies(session, self.uri, 2, self.rescuesFileStr)
-        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
-            accountsDF, contactsDF = self.getDataframes(session)   
-            functions.uploadFoodDonors(accountsDF, session, self.uri, self.rescuesFileStr)
-            functions.uploadNonprofitPartners(accountsDF, session, self.uri, self.donorsFileStr)
-            functions.uploadVolunteers(contactsDF, session, self.uri, self.nonprofitsFileStr)
+        elif self.whatToDoStr == "Find rescue discrepancies":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                # TODO: need to figure out how to display the print messages
+                functions.findRescueDiscrepancies(
+                    session, self.uri, 1, self.rescuesFileStr)
+                functions.findRescueDiscrepancies(
+                    session, self.uri, 2, self.rescuesFileStr)
+        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                accountsDF, contactsDF = self.getDataframes(session)
+                functions.uploadFoodDonors(
+                    accountsDF, session, self.uri, self.donorsFileStr)
+                functions.uploadNonprofitPartners(
+                    accountsDF, session, self.uri, self.nonprofitsFileStr)
+                functions.uploadVolunteers(
+                    contactsDF, session, self.uri, self.volunteersFileStr)
         # TODO: return errors in dialog box (?) use try catch
 
     def createDialogBox(self, message):
