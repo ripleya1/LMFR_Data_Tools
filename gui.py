@@ -133,9 +133,9 @@ class Window(QDialog):
         self.tokenTextBox.setEchoMode(QLineEdit.Password)
 
         # set minimum widths
-        self.emailTextBox.setMinimumWidth(175)
-        self.passwordTextBox.setMinimumWidth(175)
-        self.tokenTextBox.setMinimumWidth(175)
+        self.emailTextBox.setMinimumWidth(200)
+        self.passwordTextBox.setMinimumWidth(200)
+        self.tokenTextBox.setMinimumWidth(200)
 
         layout.addRow(self.tr("&Email:"), self.emailTextBox)
         layout.addRow(self.tr("&Password:"), self.passwordTextBox)
