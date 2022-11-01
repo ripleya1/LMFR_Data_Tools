@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 import functions
 import salesforce
-from pandas import set_option
 import sys
 import requests
 
@@ -315,7 +314,6 @@ class Window(QDialog):
                 functions.findDuplicateNonprofitPartners(accountsDF)
                 functions.findDuplicateVolunteers(contactsDF)
         elif self.whatToDoStr == "Find incomplete rescue data":
-            set_option('display.max_colwidth', None)
             functions.findIncompleteRescues(self.rescuesFileStr)
         elif self.whatToDoStr == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
