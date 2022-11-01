@@ -5,6 +5,7 @@ import salesforce
 import sys
 import requests
 
+# to generate exe run: pyinstaller --onefile --windowed gui.py
 # creating a class that inherits the QDialog class
 
 
