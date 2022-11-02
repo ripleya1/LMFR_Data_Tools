@@ -315,7 +315,16 @@ class Window(QDialog):
                 functions.findDuplicateNonprofitPartners(accountsDF)
                 functions.findDuplicateVolunteers(contactsDF)
         elif self.whatToDoStr == "Find incomplete rescue data":
-            functions.findIncompleteRescues(self.rescuesFileStr)
+            try:
+                data = functions.findIncompleteRescues(self.rescuesFileStr)
+            except ValueError as err:
+                self.createDialogBox("Double check the csv column names.\n" + str(err))
+            except Exception as err:
+                self.createDialogBox("Error:\n" + str(err))
+            except:
+                self.createDialogBox("Unspecified error")
+            else:
+                self.createDialogBox("Incomplete rescue data:\n" + str(data))
         elif self.whatToDoStr == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
