@@ -107,7 +107,7 @@ def uploadFoodRescues(rescuesDF, session):
 
     # cleanup rescuesDF
     rescuesDF.drop(axis='columns', columns=['Donor Name', 'Recipient Name'], inplace=True)
-    rescuesDF = rescuesDF[(rescuesDF['Rescue State'] == 'canceled') | (rescuesDF['Rescue State'] == 'completed')]
+    rescuesDF = rescuesDF[(rescuesDF['Rescue State'] == 'canceled') | (rescuesDF['Rescue State'] == 'completed')] # Keeps Only 'canceled' or 'completed' Rescues
     rescuesDF = rescuesDF.reset_index().drop(axis='columns', columns='index')
 
     # get list of Food Donors
@@ -142,8 +142,10 @@ def uploadFoodRescues(rescuesDF, session):
     mergedDF = pd.merge(mergedDF, salesforcePartnersDF, on='Recipient Location Name', how='left')
     mergedDF = pd.merge(mergedDF, salesforceVolunteersDF, on='Volunteer Name', how='left')
 
-    # fix columns to prepare for upload
+    # Drops unneeded columns for upload
     mergedDF.drop(axis='columns', columns=['Donor Location Name', 'Recipient Location Name', 'Volunteer Name'], inplace=True)
+
+    # Renames columns for upload
     mergedDF.columns=['Rescue_Id__c', 'Day_of_Pickup__c', 'State__c', 'Description__c', 'Food_Type__c', 'Weight__c', 'Rescue_Detail_URL__c', 'Food_Donor_Account_Name__c', 'Agency_Name__c', 'Volunteer_Name__c']
 
     # upload rescues to Salesforce
