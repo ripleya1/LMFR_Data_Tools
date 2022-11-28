@@ -1,6 +1,5 @@
 import datetime
 import configparser
-import json
 import pandas as pd
 import salesforce
 
@@ -184,8 +183,11 @@ def uploadVolunteers(contactsDF, session, volunteerFile):
     salesforceVolunteersDF = salesforceVolunteersDF[['Id', 'Name']]
 
     # clean up columns
-    # TODO: make MailingStreet consist of both Line1 and Line2 fields (currently just Line1)
-    volunteersDF = volunteersDF[['Name', 'Email', 'Phone', 'Line1', 'City', 'State', 'Zip']]
+    volunteersDF = volunteersDF[['Name', 'Email', 'Phone', 'Line1', 'Line2', 'City', 'State', 'Zip']]
+
+    #Converts Mailing Address to Salesforce format
+    volunteersDF['MailingStreet'] = volunteersDF['Line1'] + (' ' + volunteersDF['Line2'].fillna(''))
+    volunteersDF.drop(axis='columns', columns=['Line1','Line2'], inplace=True)
     volunteersDF.columns = ['Name', 'Email', 'Phone', 'MailingStreet', 'MailingCity', 'MailingState', 'MailingPostalCode']
 
     # cleanup whitespace in the Name fields to increase matches
@@ -197,16 +199,17 @@ def uploadVolunteers(contactsDF, session, volunteerFile):
     volunteersNotInSalesforceDF = volunteersNotInSalesforceDF[volunteersNotInSalesforceDF['Id'].isnull()]
     volunteersNotInSalesforceDF = volunteersNotInSalesforceDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
 
-    # add a column to register these Contacts as Volunteers, format phone numbers
+    # add a column to register these Contacts as Volunteers
     volunteersNotInSalesforceDF['AccountId'] = getConfigValue('AccountId', 'volunteers')
+
+    # Formats Phone Datatype
     volunteersNotInSalesforceDF['Phone'] = volunteersNotInSalesforceDF['Phone'].astype('Int64')
 
     # split Name column into FirstName and LastName columns
-    volunteersNotInSalesforceDF['FirstName'] = volunteersNotInSalesforceDF['Name']
-    volunteersNotInSalesforceDF['LastName'] = volunteersNotInSalesforceDF['Name']
-    for index, _row in volunteersNotInSalesforceDF.iterrows():
-        volunteersNotInSalesforceDF.at[index, 'FirstName'] = ' '.join(volunteersNotInSalesforceDF.at[index, 'Name'].split()[0:-1])
-        volunteersNotInSalesforceDF.at[index, 'LastName'] = volunteersNotInSalesforceDF.at[index, 'Name'].split()[-1]
+    volunteersNotInSalesforceDF['FirstName'] = volunteersNotInSalesforceDF['Name'].apply(lambda x: (' '.join(x.split()[0:-1])))
+    volunteersNotInSalesforceDF['LastName'] = volunteersNotInSalesforceDF['Name'].apply(lambda x: (x.split()[-1]))
+
+    # Get rid of unneeded columns
     volunteersNotInSalesforceDF.drop(axis='columns', columns=['Name'], inplace=True)
     volunteersNotInSalesforceDF = volunteersNotInSalesforceDF[['FirstName', 'LastName', 'Email', 'Phone', 'MailingStreet', 'MailingCity', 'MailingState', 'MailingPostalCode', 'AccountId']]
 
