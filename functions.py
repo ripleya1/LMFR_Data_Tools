@@ -1,10 +1,10 @@
 import datetime
 import configparser
+import json
 import pandas as pd
 import salesforce
 
 ### WRAPPER FUNCTIONS
-
 def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     """generic function to upload Account (both donor and nonprofit) data to Salesforce"""
     adminAccountsDF.columns = ['Parent Name', 'Name', 'Phone', 'Line1', 'Line2', 'ShippingCity', 'ShippingState', 'ShippingPostalCode']
@@ -20,6 +20,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     adminAccountsDF = cleanupNameWhitespace(adminAccountsDF, 'Name')
 
     # find all accounts in the admin tool not in salesforce
+    # If the name does not exist in salesforce, then it will be added
     accountsNotInSalesforceDF = pd.merge(adminAccountsDF, salesforceAccountsDF, on='Name', how='left')
     accountsNotInSalesforceDF = accountsNotInSalesforceDF[accountsNotInSalesforceDF['Id'].isnull()]
     accountsNotInSalesforceDF = accountsNotInSalesforceDF.reset_index().drop(axis='columns', columns=['index', 'Id'])
@@ -40,6 +41,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     for index, row in accountsNotInSalesforceDF.iterrows():
         childName = row['Name']
         parentName = row['Parent Name']
+
         if childName == parentName:
             uploadDFRows.append(row.values)
         elif parentName in salesforceAccountsDF['Name'].values:
@@ -61,6 +63,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     # fix phone number formatting
     if not uploadDF['Phone'].dtype == 'object':
         uploadDF['Phone'] = uploadDF['Phone'].astype('Int64')
+
     # fix zip code formatting
     if not uploadDF['ShippingPostalCode'].dtype == 'object':
         uploadDF['ShippingPostalCode'] = uploadDF['ShippingPostalCode'].astype('Int64')
@@ -69,7 +72,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     salesforce.executeSalesforceIngestJob('insert', uploadDF.to_csv(index=False), 'Account', session)
 
     # pull down new list of Accounts
-    salesforceAccountsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session)
+    salesforceAccountsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, RecordTypeId FROM Account", session)
 
     # clean new Accounts data
     salesforceAccountsDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == accountType]
@@ -86,6 +89,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     # fix phone number formatting
     if not uploadDF2['Phone'].dtype == 'object':
         uploadDF2['Phone'] = uploadDF2['Phone'].astype('Int64')
+
     # fix zip code formatting
     if not uploadDF2['ShippingPostalCode'].dtype == 'object':
         uploadDF2['ShippingPostalCode'] = uploadDF2['ShippingPostalCode'].astype('Int64')
@@ -94,14 +98,13 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     uploadDF2.drop(axis='columns', columns=['Parent Name'], inplace=True)
     salesforce.executeSalesforceIngestJob('insert', uploadDF2.to_csv(index=False), 'Account', session)
 
-
 def uploadFoodRescues(rescuesDF, session):
     """generic function to upload Food Rescue data to Salesforce"""
     # load in Accounts from Salesforce
-    salesforceAccountsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session)
+    salesforceAccountsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, RecordTypeId FROM Account", session)
 
     # load in Contacts from Salesforce
-    salesforceContactsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session)
+    salesforceContactsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, AccountId FROM Contact", session)
 
     # cleanup rescuesDF
     rescuesDF.drop(axis='columns', columns=['Donor Name', 'Recipient Name'], inplace=True)
@@ -201,7 +204,7 @@ def uploadVolunteers(contactsDF, session, volunteerFile):
     # split Name column into FirstName and LastName columns
     volunteersNotInSalesforceDF['FirstName'] = volunteersNotInSalesforceDF['Name']
     volunteersNotInSalesforceDF['LastName'] = volunteersNotInSalesforceDF['Name']
-    for index, row in volunteersNotInSalesforceDF.iterrows():
+    for index, _row in volunteersNotInSalesforceDF.iterrows():
         volunteersNotInSalesforceDF.at[index, 'FirstName'] = ' '.join(volunteersNotInSalesforceDF.at[index, 'Name'].split()[0:-1])
         volunteersNotInSalesforceDF.at[index, 'LastName'] = volunteersNotInSalesforceDF.at[index, 'Name'].split()[-1]
     volunteersNotInSalesforceDF.drop(axis='columns', columns=['Name'], inplace=True)
@@ -234,10 +237,12 @@ def uploadDataToSalesforce(accountsDF, contactsDF, session, donorFile, nonprofit
     print('Checking for new Food Donors:')
     print('-----------------------------')
     uploadFoodDonors(accountsDF, session, donorFile)
+
     print('------------------------------------')
     print('Checking for new Nonprofit Partners:')
     print('------------------------------------')
     uploadNonprofitPartners(accountsDF, session, nonprofitPartner)
+
     print('----------------------------')
     print('Checking for new Volunteers:')
     print('----------------------------')
@@ -248,10 +253,10 @@ def uploadDataToSalesforce(accountsDF, contactsDF, session, donorFile, nonprofit
     print('Uploading all new Food Rescues:')
     print('-------------------------------')
     uploadNewFoodRescues(session, rescueFile)
+
     print('\nDone!')
 
 ### WRAPPER FUNCTIONS FOR HELPER TOOLS
-
 def findDuplicateRecords(df, colName):
     """generic function to find duplicate records"""
     duplicatesDF = None
@@ -328,7 +333,6 @@ def updateSFRescuesWithComments(session, rescueCommentFile):
     mergedCommentsDF.columns = ['Id', 'Comments__c']
     salesforce.executeSalesforceIngestJob('update', mergedCommentsDF.to_csv(index=False), 'Food_Rescue__c', session)
 
-# function to find all food rescue discrepancies between Salesforce and the admin tool
 def findRescueDiscrepancies(session, choose, rescueFile):
     """function to find all food rescue discrepancies between Salesforce and the admin tool"""
     salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT State__c, Food_Type__c, Day_of_Pickup__c, Rescue_Detail_URL__c, Rescue_Id__c FROM Food_Rescue__c', session)
@@ -368,7 +372,7 @@ def findRescueDiscrepancies(session, choose, rescueFile):
 ### GENERAL HELPERS
 def cleanupNameWhitespace(df, colName):
     """helper function to cleanup whitespace between words in a DF column"""
-    for index, row in df.iterrows():
+    for index, _row in df.iterrows():
         df.at[index, colName] = ' '.join(str(df.at[index, colName]).split())
     return df
 
@@ -378,6 +382,8 @@ def getConfigValue(section, key):
     config = configparser.ConfigParser()
     config.read(configurationFile)
     try:
-        return config[section][key]
+        configValue = config[section][key]
     except KeyError as exc:
         raise KeyError(f'Unable to find {key} in {section} within {configurationFile}') from exc
+
+    return configValue
