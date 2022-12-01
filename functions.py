@@ -329,37 +329,69 @@ def updateSFRescuesWithComments(session, uri, rescueCommentFile):
     salesforce.executeSalesforceIngestJob('update', mergedCommentsDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
 
 # function to find all food rescue discrepancies between Salesforce and the admin tool
-def findRescueDiscrepancies(session, uri, choose, rescueFile):
+def findRescueDiscrepancies(session, uri, choice, rescueFile):
     """function to find all food rescue discrepancies between Salesforce and the admin tool"""
-    salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT State__c, Food_Type__c, Day_of_Pickup__c, Rescue_Detail_URL__c, Rescue_Id__c FROM Food_Rescue__c', session, uri)
-    salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
+    
+    adminRescuesDF = pd.read_csv(rescueFile)
+    adminRescuesDF['Day of Pickup Start'] = pd.to_datetime(adminRescuesDF['Day of Pickup Start'])
 
-    # only completed rescues
-    salesforceRescuesDF = salesforceRescuesDF[salesforceRescuesDF['State__c'] == 'completed']
+    if choice == 1 or choice == 2:
+        # Only want completed Rescue ID's and certain columns for choices one and two
+        salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT State__c, Food_Type__c, Day_of_Pickup__c, Rescue_Detail_URL__c, Rescue_Id__c FROM Food_Rescue__c', session, uri)
+        salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
 
-    # sort by Rescue ID
-    salesforceRescuesDF = salesforceRescuesDF.sort_values(by='Rescue_Id__c')
+        # only completed rescues
+        salesforceRescuesDF = salesforceRescuesDF[salesforceRescuesDF['State__c'] == 'completed']
 
-    df = pd.read_csv(rescueFile)
-    df['Day of Pickup Start'] = pd.to_datetime(df['Day of Pickup Start'])
+        # sort by Rescue ID
+        salesforceRescuesDF = salesforceRescuesDF.sort_values(by='Rescue_Id__c')
 
-    # only completed rescues
-    df = df[df['Rescue State'] == 'completed']
 
-    # sort by Rescue ID
-    df = df.sort_values(by='Rescue ID')
+        # only completed rescues
+        adminRescuesDF = adminRescuesDF[adminRescuesDF['Rescue State'] == 'completed']
 
-    adminRescueID = df['Rescue ID']
-    salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
+        # sort by Rescue ID
+        adminRescuesDF = adminRescuesDF.sort_values(by='Rescue ID')
+    elif choice == 3:
+        # Choice three requires more columns
+        salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT Rescue_Id__c, State__c, Day_of_Pickup__c, Description__c, Food_Type__c, Weight__c, Rescue_Detail_URL__c, Food_Donor_Account_Name__c, Agency_Name__c, Volunteer_Name__c FROM Food_Rescue__c', session, uri)
+        salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
 
-    if choose == 1:
-        # print all rescue IDs in Salesforce but not in admin
+    # Find Discrepensies
+    if choice == 1:
+        # print all completed rescue IDs in Salesforce but not in admin
+        adminRescueID = adminRescuesDF['Rescue ID']
+        salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
         res = salesforceRescueID[~salesforceRescueID.isin(adminRescueID)]
         print('All rescue IDs that are marked completed in Salesforce but not in the admin tool:')
-    elif choose == 2:
-        # print all rescue IDs in the admin tool but not in Salesforce
+    elif choice == 2:
+        # print all completed rescue IDs in the admin tool but not in Salesforce
+        adminRescueID = adminRescuesDF['Rescue ID']
+        salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
         res = adminRescueID[~adminRescueID.isin(salesforceRescueID)]
         print('All rescue IDs that are marked completed in the admin tool but not in Salesforce:')
+    elif choice == 3:
+        #Find discrepancies between other fields that may or may not completed
+
+        # Rename Columns to Match Salesforce DF
+        adminRescuesDF = adminRescuesDF.rename(columns={
+            'Rescue ID': 'Rescue_Id__c',
+            'Day of Pickup Start': 'Day_of_Pickup__c',
+            'Donor Name': 'Food_Donor_Account_Name__c',
+            'Recipient Name': 'Agency_Name__c',
+            'Volunteer Name': 'Volunteer_Name__c',
+            'Rescue State': 'State__c',
+            'Description': 'Description__c',
+            'Food Type': 'Food_Type__c',
+            'Weight': 'Weight__c',
+            'Rescue Detail URL': 'Rescue_Detail_URL__c'
+        })
+
+        # Drop Columns in adminRescuesDF that are not in the Salesforce DF
+        adminRescuesDF.drop(columns=['Donor Location Name','Recipient Location Name'], inplace=True)
+
+        # Compare Data frames
+        res = adminRescuesDF.compare(salesforceRescuesDF)
 
     print('Record Count:')
     print(res.count())
