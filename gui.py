@@ -1,12 +1,26 @@
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
+import functions
+import salesforce
 import sys
+import requests
 
+# to generate exe run: pyinstaller --onefile --windowed gui.py
 # creating a class that inherits the QDialog class
+
+
 class Window(QDialog):
     # constructor
     def __init__(self):
         super().__init__()
+
+        self.uri = "https://lastmilefood.my.salesforce.com/services/data/v52.0/jobs/"
+
+        self.whatToDoStr = ""
+        self.rescuesFileStr = ""
+        self.donorsFileStr = ""
+        self.nonprofitsFileStr = ""
+        self.volunteersFileStr = ""
 
         # set window title
         self.setWindowTitle("Last Mile Food Rescue")
@@ -51,64 +65,81 @@ class Window(QDialog):
 
         self.fileLabel = ""
 
-        #Create Buttons
-        self.fileButton1 = QPushButton(self.fileLabel)
-        self.fileButton1.clicked.connect(lambda: self.filePicker(self.fileButton1))
-        self.fileButton1.hide()
+        # Create Buttons
+        self.rescuesButton = QPushButton(self.fileLabel)
+        self.rescuesButton.clicked.connect(
+            lambda: self.filePicker(self.rescuesButton))
+        self.rescuesButton.hide()
 
-        self.fileButton2 = QPushButton(self.fileLabel)
-        self.fileButton2.clicked.connect(lambda: self.filePicker(self.fileButton2))
-        self.fileButton2.hide()
+        self.donorsButton = QPushButton(self.fileLabel)
+        self.donorsButton.clicked.connect(
+            lambda: self.filePicker(self.donorsButton))
+        self.donorsButton.hide()
 
-        self.fileButton3 = QPushButton(self.fileLabel)
-        self.fileButton3.clicked.connect(lambda: self.filePicker(self.fileButton3))
-        self.fileButton3.hide()
+        self.nonprofitsButton = QPushButton(self.fileLabel)
+        self.nonprofitsButton.clicked.connect(
+            lambda: self.filePicker(self.nonprofitsButton))
+        self.nonprofitsButton.hide()
 
-        self.fileButton4 = QPushButton(self.fileLabel)
-        self.fileButton4.clicked.connect(lambda: self.filePicker(self.fileButton4))
-        self.fileButton4.hide()
+        self.volunteersButton = QPushButton(self.fileLabel)
+        self.volunteersButton.clicked.connect(
+            lambda: self.filePicker(self.volunteersButton))
+        self.volunteersButton.hide()
 
         # adding rows
-        self.filePickerLayout.addRow(self.fileButton1)
-        self.filePickerLayout.addRow(self.fileButton2)
-        self.filePickerLayout.addRow(self.fileButton3)
-        self.filePickerLayout.addRow(self.fileButton4)
+        self.filePickerLayout.addRow(self.rescuesButton)
+        self.filePickerLayout.addRow(self.donorsButton)
+        self.filePickerLayout.addRow(self.nonprofitsButton)
+        self.filePickerLayout.addRow(self.volunteersButton)
 
         # setting layout
         self.filePickerGroup.setLayout(self.filePickerLayout)
 
     def filePicker(self, button: QPushButton = None):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
-                                                "", "CSV File (*.csv)")
+                                                  "", "CSV File (*.csv)")
         if check:
-            print(file)
             if button is not None:
                 button.setText(self.getFileNameFromPath(file))
+            if button == self.rescuesButton:
+                self.rescuesFileStr = file
+            elif button == self.donorsButton:
+                self.donorsFileStr = file
+            elif button == self.nonprofitsButton:
+                self.nonprofitsFileStr = file
+            elif button == self.volunteersButton:
+                self.volunteersFileStr = file
             return file
+        else:
+            return ""
 
     def getFileNameFromPath(self, path):
-        path = path[::-1] # reverse string
-        return path[0:path.index("/")][::-1] # substring from last occurrance of / and reverse string again
+        # reverse string
+        path = path[::-1]
+        # substring from last occurrance of / and reverse string again
+        return path[0:path.index("/")][::-1]
 
     def createCredentialsForm(self):
         self.credentialsGroup = QGroupBox("Credentials")
 
         layout = QFormLayout()
-        
-        emailTextBox = QLineEdit(self)
-        passwordTextBox = QLineEdit(self)
-        tokenTextBox = QLineEdit(self)
 
-        passwordTextBox.setEchoMode(QLineEdit.Password)
-        tokenTextBox.setEchoMode(QLineEdit.Password)
+        # add text boxes
+        self.emailTextBox = QLineEdit(self)
+        self.passwordTextBox = QLineEdit(self)
+        self.tokenTextBox = QLineEdit(self)
 
-        emailTextBox.setMinimumWidth(175)
-        passwordTextBox.setMinimumWidth(175)
-        tokenTextBox.setMinimumWidth(175)
+        self.passwordTextBox.setEchoMode(QLineEdit.Password)
+        self.tokenTextBox.setEchoMode(QLineEdit.Password)
 
-        layout.addRow(self.tr("&Email:"), emailTextBox)
-        layout.addRow(self.tr("&Password:"), passwordTextBox)
-        layout.addRow(self.tr("&Token:"), tokenTextBox)
+        # set minimum widths
+        self.emailTextBox.setMinimumWidth(200)
+        self.passwordTextBox.setMinimumWidth(200)
+        self.tokenTextBox.setMinimumWidth(200)
+
+        layout.addRow(self.tr("&Email:"), self.emailTextBox)
+        layout.addRow(self.tr("&Password:"), self.passwordTextBox)
+        layout.addRow(self.tr("&Token:"), self.tokenTextBox)
 
         self.credentialsGroup.setLayout(layout)
 
@@ -117,11 +148,15 @@ class Window(QDialog):
 
         layout = QFormLayout()
 
-        dataUploadButton = QRadioButton("Salesforce data upload") # 4 files
-        salesforceDupesButton = QRadioButton("Find Salesforce duplicates") # 0 files
-        incompleteDataButton = QRadioButton("Find incomplete rescue data") # 1 file
-        rescueDiscrepanciesButton = QRadioButton("Find rescue discrepancies") # 1 file
-        newSalesforceButton = QRadioButton("Create new Salesforce accounts and contacts") # 3 files
+        dataUploadButton = QRadioButton("Salesforce data upload")
+        salesforceDupesButton = QRadioButton(
+            "Find Salesforce duplicates")
+        incompleteDataButton = QRadioButton(
+            "Find incomplete rescue data")
+        rescueDiscrepanciesButton = QRadioButton(
+            "Find rescue discrepancies")
+        newSalesforceButton = QRadioButton(
+            "Create new Salesforce accounts and contacts")
 
         layout.addRow(dataUploadButton)
         layout.addRow(salesforceDupesButton)
@@ -140,59 +175,191 @@ class Window(QDialog):
     def onRadioButtonClick(self):
         button = self.sender()
         buttonName = button.text()
+
+        # update button displays
         if button.isChecked:
+            # filename on button box persists
             if buttonName == "Salesforce data upload":
-                self.fileButton1.show()
-                self.fileButton1.setText("Donors report")
-                self.fileButton2.show()
-                self.fileButton2.setText("Nonprofits report")
-                self.fileButton3.show()
-                self.fileButton3.setText("Volunteers report")
-                self.fileButton4.show()
-                self.fileButton4.setText("Rescues report")
+                self.whatToDoStr = "Salesforce data upload"
+                self.updateButtonText(
+                    [self.donorsButton, self.nonprofitsButton, self.volunteersButton, self.rescuesButton])
+                self.donorsButton.show()
+                self.nonprofitsButton.show()
+                self.volunteersButton.show()
+                self.rescuesButton.show()
             elif buttonName == "Find Salesforce duplicates":
-                self.fileButton1.hide()
-                self.fileButton2.hide()
-                self.fileButton3.hide()
-                self.fileButton4.hide()
+                self.whatToDoStr = "Find Salesforce duplicates"
+                self.rescuesButton.hide()
+                self.donorsButton.hide()
+                self.nonprofitsButton.hide()
+                self.volunteersButton.hide()
             elif buttonName == "Find incomplete rescue data":
-                self.fileButton1.show()
-                self.fileButton1.setText("Rescues report")
-                self.fileButton2.hide()
-                self.fileButton3.hide()
-                self.fileButton4.hide()
+                self.whatToDoStr = "Find incomplete rescue data"
+                self.updateButtonText([self.rescuesButton])
+                self.rescuesButton.show()
+                self.donorsButton.hide()
+                self.nonprofitsButton.hide()
+                self.volunteersButton.hide()
             elif buttonName == "Find rescue discrepancies":
-                self.fileButton1.show()
-                self.fileButton1.setText("Rescues report")
-                self.fileButton2.hide()
-                self.fileButton3.hide()
-                self.fileButton4.hide()
+                self.whatToDoStr = "Find rescue discrepancies"
+                self.updateButtonText([self.rescuesButton])
+                self.rescuesButton.show()
+                self.donorsButton.hide()
+                self.nonprofitsButton.hide()
+                self.volunteersButton.hide()
             elif buttonName == "Create new Salesforce accounts and contacts":
-                self.fileButton1.show()
-                self.fileButton1.setText("Donors report")
-                self.fileButton2.show()
-                self.fileButton2.setText("Nonprofits report")
-                self.fileButton3.show()
-                self.fileButton3.setText("Volunteers report")
-                self.fileButton4.hide()
+                self.whatToDoStr = "Create new Salesforce accounts and contacts"
+                self.updateButtonText(
+                    [self.donorsButton, self.nonprofitsButton, self.volunteersButton])
+                self.rescuesButton.hide()
+                self.donorsButton.show()
+                self.nonprofitsButton.show()
+                self.volunteersButton.show()
+
+    def updateButtonText(self, buttons):
+        for button in buttons:
+            if button == self.rescuesButton:
+                if self.rescuesFileStr == "":
+                    self.rescuesButton.setText("Rescues report")
+                else:
+                    self.rescuesButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
+            elif button == self.donorsButton:
+                if self.donorsFileStr == "":
+                    self.donorsButton.setText("Donors report")
+                else:
+                    self.donorsButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
+            elif button == self.nonprofitsButton:
+                if self.nonprofitsFileStr == "":
+                    self.nonprofitsButton.setText("Nonprofits report")
+                else:
+                    self.nonprofitsButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
+            elif button == self.volunteersButton:
+                if self.volunteersFileStr == "":
+                    self.volunteersButton.setText("Volunteers report")
+                else:
+                    self.volunteersButton.setText(
+                        self.getFileNameFromPath(self.rescuesFileStr))
 
     def createButtonBox(self):
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.close)
+        self.buttonBox.accepted.connect(self.endStuff)
         self.buttonBox.rejected.connect(self.reject)
 
-    # def checkEnd(self):
+    # checks that all filepickers have the appropriate files loaded
+    def checkFilePickersLoaded(self):
+        if self.whatToDoStr == "Salesforce data upload":  # 4
+            if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr or self.volunteersFileStr == "":
+                return False
+            else:
+                return True
+        elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
+            return True
+        elif self.whatToDoStr == "Find incomplete rescue data" or "Find rescue discrepancies":  # 1
+            if self.rescuesFileStr == "":
+                return False
+            else:
+                return True
+        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
+            if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr == "":
+                return False
+            else:
+                return True
 
-    # need to add clearing of file picker when switching what to do selection
-    # def checkFilePickersLoaded(self):
-        # check that all filepickers have files loaded
-        # 
+    def checkCredentials(self):
+        try:
+            session = salesforce.loginToSalesforce(self.emailTextBox.text(
+            ), self.passwordTextBox.text(), self.tokenTextBox.text())
+            return True, session
+        except:
+            self.createDialogBox(
+                "ERROR: Credentials invalid. Please check your credentials.")
+            return False, requests.Session()
 
-    # def endStuff(self):
-        # check credentials
+    def getDataframes(self, session):
+        accountsDF = salesforce.getDataframeFromSalesforce(
+            'SELECT Id, Name, RecordTypeId FROM Account', session, self.uri)
+        contactsDF = salesforce.getDataframeFromSalesforce(
+            'SELECT Id, Name, AccountId FROM Contact', session, self.uri)
+        return accountsDF, contactsDF
+
+    def endStuff(self):
+        if not self.checkFilePickersLoaded():
+            self.createDialogBox(
+                "ERROR: Files are not loaded. Please load files.")
+            return
         # run functions
-        # return errors in dialog box (?)
+        # only checks credentials if the function selected uses them
+        if self.whatToDoStr == "Salesforce data upload":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.uploadDataToSalesforce(
+                        accountsDF,
+                        contactsDF,
+                        session,
+                        self.uri,
+                        self.donorsFileStr,
+                        self.nonprofitsFileStr,
+                        self.volunteersFileStr,
+                        self.rescuesFileStr
+                    )
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
+        elif self.whatToDoStr == "Find Salesforce duplicates":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.findDuplicateFoodDonors(accountsDF)
+                    functions.findDuplicateNonprofitPartners(accountsDF)
+                    functions.findDuplicateVolunteers(contactsDF)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
+        elif self.whatToDoStr == "Find incomplete rescue data":
+            try:
+                data = functions.findIncompleteRescues(self.rescuesFileStr)
+            except ValueError as err:
+                self.createDialogBox("Double check the csv column names.\n" + str(err))
+            except Exception as err:
+                self.createDialogBox("Error:\n" + str(err))
+            except:
+                self.createDialogBox("Unspecified error.")
+            else:
+                self.createDialogBox("Incomplete rescue data:\n" + str(data))
+        elif self.whatToDoStr == "Find rescue discrepancies":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                try:
+                    # TODO: need to figure out how to display the print messages
+                    functions.findRescueDiscrepancies(
+                        session, self.uri, 1, self.rescuesFileStr)
+                    functions.findRescueDiscrepancies(
+                        session, self.uri, 2, self.rescuesFileStr)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
+        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.uploadFoodDonors(
+                        accountsDF, session, self.uri, self.donorsFileStr)
+                    functions.uploadNonprofitPartners(
+                        accountsDF, session, self.uri, self.nonprofitsFileStr)
+                    functions.uploadVolunteers(
+                        contactsDF, session, self.uri, self.volunteersFileStr)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
+
+    def createDialogBox(self, message):
+        dialog = QMessageBox.about(self, "Alert", message)
+        return dialog
+
 
 # main method
 if __name__ == '__main__':
