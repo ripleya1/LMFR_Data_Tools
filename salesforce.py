@@ -152,6 +152,8 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
 
     if operation == 'insert':
         print('Upload complete!\n')
+    if operation == 'update':
+        print('Update complete!\n')
     elif operation == 'delete':
         print('Deletion complete.\n')
 
@@ -166,5 +168,4 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
         print('---ERROR MESSAGE---')
         print(response.text)
         print('-------------------')
-        print(
-            'Please check Salesforce for further explanation: Setup > Bulk Data Load Jobs\n')
+        print('Please check Salesforce for further explanation: Setup > Bulk Data Load Jobs\n')

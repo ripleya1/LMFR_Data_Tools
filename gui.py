@@ -155,6 +155,9 @@ class Window(QDialog):
             "Find incomplete rescue data")
         rescueDiscrepanciesButton = QRadioButton(
             "Find rescue discrepancies")
+        resolveRescueDiscrepanciesButton = QRadioButton(
+            "Resolve Rescue Discrepancies"
+        )
         newSalesforceButton = QRadioButton(
             "Create new Salesforce accounts and contacts")
 
@@ -162,12 +165,14 @@ class Window(QDialog):
         layout.addRow(salesforceDupesButton)
         layout.addRow(incompleteDataButton)
         layout.addRow(rescueDiscrepanciesButton)
+        layout.addRow(resolveRescueDiscrepanciesButton)
         layout.addRow(newSalesforceButton)
 
         dataUploadButton.toggled.connect(self.onRadioButtonClick)
         salesforceDupesButton.toggled.connect(self.onRadioButtonClick)
         incompleteDataButton.toggled.connect(self.onRadioButtonClick)
         rescueDiscrepanciesButton.toggled.connect(self.onRadioButtonClick)
+        resolveRescueDiscrepanciesButton.toggled.connect(self.onRadioButtonClick)
         newSalesforceButton.toggled.connect(self.onRadioButtonClick)
 
         self.whatToDoGroup.setLayout(layout)
@@ -202,6 +207,13 @@ class Window(QDialog):
                 self.volunteersButton.hide()
             elif buttonName == "Find rescue discrepancies":
                 self.whatToDoStr = "Find rescue discrepancies"
+                self.updateButtonText([self.rescuesButton])
+                self.rescuesButton.show()
+                self.donorsButton.hide()
+                self.nonprofitsButton.hide()
+                self.volunteersButton.hide()
+            elif buttonName == "Resolve Rescue Discrepancies":
+                self.whatToDoStr = "Resolve Rescue Discrepancies"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
                 self.donorsButton.hide()
@@ -252,13 +264,13 @@ class Window(QDialog):
     # checks that all filepickers have the appropriate files loaded
     def checkFilePickersLoaded(self):
         if self.whatToDoStr == "Salesforce data upload":  # 4
-            if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr or self.volunteersFileStr == "":
+            if self.rescuesFileStr == "" or self.donorsFileStr == "" or self.nonprofitsFileStr == "" or self.volunteersFileStr == "":
                 return False
             else:
                 return True
         elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
             return True
-        elif self.whatToDoStr == "Find incomplete rescue data" or "Find rescue discrepancies":  # 1
+        elif self.whatToDoStr == "Find incomplete rescue data" or self.whatToDoStr == "Find rescue discrepancies" or self.whatToDoStr == "Resolve Rescue Discrepancies":  # 1
             if self.rescuesFileStr == "":
                 return False
             else:
@@ -340,6 +352,13 @@ class Window(QDialog):
                         session, self.uri, 1, self.rescuesFileStr)
                     functions.findRescueDiscrepancies(
                         session, self.uri, 2, self.rescuesFileStr)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
+        elif self.whatToDoStr == "Resolve Rescue Discrepancies":
+            credentialsValidated, session = self.checkCredentials()
+            if credentialsValidated:
+                try:
+                    functions.resolveRescueDiscrepancies(session, self.uri, self.rescuesFileStr)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":

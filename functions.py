@@ -250,6 +250,14 @@ def uploadDataToSalesforce(accountsDF, contactsDF, session, uri, donorFile, nonp
     uploadNewFoodRescues(session, uri, rescueFile)
     print('\nDone!')
 
+def resolveRescueDiscrepancies(session, uri, rescueFile):
+    """Finds the Discrepancies between Salesforce and Admin Tool and then uploads them to SalesForce"""
+    discrepencesDF = findRescueDiscrepancies(session, uri, 3, rescueFile)
+    # TODO Fix issues with different length dataframes!
+    # TODO Figure out how to get the Salesforce ID for the Update into a dataframe
+    # TODO Format discrepensy data into CSV to be updated 
+    salesforce.executeSalesforceIngestJob('update', discrepencesDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
+
 ### WRAPPER FUNCTIONS FOR HELPER TOOLS
 
 def findDuplicateRecords(df, colName):
@@ -360,7 +368,7 @@ def findRescueDiscrepancies(session, uri, choice, rescueFile):
         adminRescuesDF = adminRescuesDF.sort_values(by='Rescue ID')
     elif choice == 3:
         # Choice three requires more columns
-        salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT Rescue_Id__c, State__c, Day_of_Pickup__c, Description__c, Food_Type__c, Weight__c, Rescue_Detail_URL__c, Food_Donor_Account_Name__c, Agency_Name__c, Volunteer_Name__c FROM Food_Rescue__c', session, uri)
+        salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT Id, Rescue_Id__c, State__c, Day_of_Pickup__c, Description__c, Food_Type__c, Weight__c, Rescue_Detail_URL__c, Food_Donor_Account_Name__c, Agency_Name__c, Volunteer_Name__c FROM Food_Rescue__c', session, uri)
         salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
 
     # Find Discrepensies
