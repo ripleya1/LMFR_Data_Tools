@@ -4,11 +4,12 @@ import functions
 import salesforce
 import sys
 import requests
+import pandas
 
 # to generate exe run: pyinstaller --onefile --windowed gui.py
 # creating a class that inherits the QDialog class
 
-
+# TODO: DOCUMENTATION
 class Window(QDialog):
     # constructor
     def __init__(self):
@@ -314,6 +315,7 @@ class Window(QDialog):
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
+                    # TODO: output to txt
                     accountsDF, contactsDF = self.getDataframes(session)
                     functions.findDuplicateFoodDonors(accountsDF)
                     functions.findDuplicateNonprofitPartners(accountsDF)
@@ -330,16 +332,26 @@ class Window(QDialog):
             except:
                 self.createDialogBox("Unspecified error.")
             else:
-                self.createDialogBox("Incomplete rescue data:\n" + str(data))
+                # TODO: output pandas df to txt instead of dialog box, maybe open txt automatically
+                # self.createDialogBox("Incomplete rescue data:\n" + str(data))
+                path = self.convertDFToTxt(data)
+                self.openFile(path)
         elif self.whatToDoStr == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
-                    # TODO: need to figure out how to display the print messages
-                    functions.findRescueDiscrepancies(
+                    # TODO: output to txt
+                    choice1DF = functions.findRescueDiscrepancies(
                         session, self.uri, 1, self.rescuesFileStr)
-                    functions.findRescueDiscrepancies(
+                    choice2DF = functions.findRescueDiscrepancies(
                         session, self.uri, 2, self.rescuesFileStr)
+                    
+                    # self.createDialogBox(choice1DF.tolist())
+                    path = self.convertDFToTxt(choice1DF)
+                    self.openFile(path)
+
+                    path = self.convertDFToTxt(choice2DF)
+                    self.openFile(path)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
@@ -356,22 +368,25 @@ class Window(QDialog):
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
 
+    def convertDFToTxt(self, df, fileName):
+        # https://stackoverflow.com/questions/41428539/data-frame-to-file-txt-python
+        # use tab sep
+        # make sure to overwrite existing file if there is one
+        # say where the file is
+        fileName += ".txt"
+        df.to_csv(fileName, sep = "\t", index = False)
+        self.createDialogBox("The file has been saved to: " + fileName)
+        pass
+
     def createDialogBox(self, message):
         dialog = QMessageBox.about(self, "Alert", message)
         return dialog
 
+# running the GUI
+app = QApplication(sys.argv)
 
-# main method
-if __name__ == '__main__':
+window = Window()
+window.show()
 
-    # create pyqt5 app
-    app = QApplication(sys.argv)
-
-    # create the instance of our Window
-    window = Window()
-
-    # showing the window
-    window.show()
-
-    # start the app
-    sys.exit(app.exec())
+# start the app
+sys.exit(app.exec())
