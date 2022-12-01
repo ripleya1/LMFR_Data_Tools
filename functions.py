@@ -349,16 +349,16 @@ def findRescueDiscrepancies(session, choose, rescueFile):
     # sort by Rescue ID
     salesforceRescuesDF = salesforceRescuesDF.sort_values(by='Rescue_Id__c')
 
-    df = pd.read_csv(rescueFile)
-    df['Day of Pickup Start'] = pd.to_datetime(df['Day of Pickup Start'])
+    adminRescuesDF = pd.read_csv(rescueFile)
+    adminRescuesDF['Day of Pickup Start'] = pd.to_datetime(adminRescuesDF['Day of Pickup Start'])
 
     # only completed rescues
-    df = df[df['Rescue State'] == 'completed']
+    adminRescuesDF = adminRescuesDF[adminRescuesDF['Rescue State'] == 'completed']
 
     # sort by Rescue ID
-    df = df.sort_values(by='Rescue ID')
+    adminRescuesDF = adminRescuesDF.sort_values(by='Rescue ID')
 
-    adminRescueID = df['Rescue ID']
+    adminRescueID = adminRescuesDF['Rescue ID']
     salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
 
     if choose == 1:
