@@ -28,7 +28,6 @@ class Window(QDialog):
         # add maximize and minimize buttons
         self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, True)
-        # TODO: possibly add ? button
 
         # set default size for the window
         self.setGeometry(500, 500, 500, 500)
@@ -166,6 +165,14 @@ class Window(QDialog):
         newSalesforceButton = QRadioButton(
             "Create new Salesforce accounts and contacts")
 
+        # add tooltips
+        # TODO: double check that the text on these are good
+        dataUploadButton.setToolTip("Upload data to Salesforce.")
+        salesforceDupesButton.setToolTip("Find duplicates in Salesforce.\nSends the results to multiple text files in the current folder.")
+        incompleteDataButton.setToolTip("Finds incomplete rescue data.\nSends the results to a text file in the current folder.")
+        rescueDiscrepanciesButton.setToolTip("Finds rescue discrepancies.\nSends the results to multiple text files in the current folder.")
+        newSalesforceButton.setToolTip("Creates a new Salesforce account.")
+
         # add buttons
         layout.addRow(dataUploadButton)
         layout.addRow(salesforceDupesButton)
@@ -295,8 +302,8 @@ class Window(QDialog):
             ), self.passwordTextBox.text(), self.tokenTextBox.text())
             return True, session
         except:
-            self.createDialogBox(
-                "ERROR: Credentials invalid. Please check your credentials.")
+            self.createErrorDialogBox(
+                "Credentials invalid. Please check your credentials.")
             return False, requests.Session()
 
     # helper function that gets the accounts and contacts dataframes from salesforce
@@ -311,13 +318,12 @@ class Window(QDialog):
     # function that does the stuff we're actually trying to do
     def runFunctions(self):
         if not self.checkFilePickersLoaded():
-            self.createDialogBox(
-                "ERROR: Files are not loaded. Please load files.")
+            self.createErrorDialogBox(
+                "Files are not loaded. Please load files.")
             return
         # run functions for the selected option
         # only checks credentials if the option selected uses them
         # uses try except to create an error dialog box if an error is encountered
-        # TODO: might want to add mouseover text/? to explain what each thing does
         if self.selectedOption == "Salesforce data upload":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
@@ -333,6 +339,8 @@ class Window(QDialog):
                         self.volunteersFileStr,
                         self.rescuesFileStr
                     )
+                    # create a success dialog box if an exception is not encountered
+                    self.createSuccessDialogBox("Data successfully uploaded!")
                 except Exception as err:
                     self.createErrorDialogBox(err)
         elif self.selectedOption == "Find Salesforce duplicates":
@@ -341,24 +349,31 @@ class Window(QDialog):
                 try:
                     accountsDF, contactsDF = self.getDataframes(session)
                     foodDonorsDF = functions.findDuplicateFoodDonors(accountsDF)
-                    self.convertDFToTxt(foodDonorsDF, "duplicate_food_donors")
+                    # does not create txt files if the dataframe is empty
+                    if not self.dfIsEmpty(foodDonorsDF):
+                        self.convertDFToTxt(foodDonorsDF, "duplicate_food_donors")
                     nonprofitDF = functions.findDuplicateNonprofitPartners(accountsDF)
-                    self.convertDFToTxt(nonprofitDF, "duplicate_nonprofits")
+                    if not self.dfIsEmpty(nonprofitDF):
+                        self.convertDFToTxt(nonprofitDF, "duplicate_nonprofits")
                     volunteersDF = functions.findDuplicateVolunteers(contactsDF)
-                    self.convertDFToTxt(volunteersDF, "duplicate_volunteers")
+                    if not self.dfIsEmpty(volunteersDF):
+                        self.convertDFToTxt(volunteersDF, "duplicate_volunteers")
+                    self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any duplicates).")
                 except Exception as err:
                     self.createErrorDialogBox(err)
         elif self.selectedOption == "Find incomplete rescue data":
             try:
                 data = functions.findIncompleteRescues(self.rescuesFileStr)
             except ValueError as err:
-                self.createDialogBox("Double check the csv column names.\n" + str(err))
+                self.createErrorDialogBox("Double check the csv column names.\n" + str(err))
             except Exception as err:
-                self.createDialogBox("Error:\n" + str(err))
+                self.createErrorDialogBox(err)
             except:
-                self.createDialogBox("Unspecified error.")
+                self.createErrorDialogBox("Unspecified error.")
             else:
-                self.convertDFToTxt(data, "incomplete_rescue_data")
+                if not self.dfIsEmpty(data):
+                    self.convertDFToTxt(data, "incomplete_rescue_data")
+                self.createSuccessDialogBox("Processing successful! Result is in a text file in the current folder (if there were any incomplete rescues).")
         elif self.selectedOption == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
@@ -367,8 +382,11 @@ class Window(QDialog):
                         session, self.uri, 1, self.rescuesFileStr)
                     choice2DF = functions.findRescueDiscrepancies(
                         session, self.uri, 2, self.rescuesFileStr)
-                    self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
-                    self.convertDFToTxt(choice2DF, "rescue_discrepancies_not_in_salesforce")
+                    if not self.dfIsEmpty(choice1DF):
+                        self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
+                    if not self.dfIsEmpty(choice2DF):
+                        self.convertDFToTxt(choice2DF, "rescue_discrepancies_not_in_salesforce")
+                    self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any rescue discrepancies).")
                 except Exception as err:
                     self.createErrorDialogBox(err)
         elif self.selectedOption == "Create new Salesforce accounts and contacts":
@@ -382,24 +400,34 @@ class Window(QDialog):
                         accountsDF, session, self.uri, self.nonprofitsFileStr)
                     functions.uploadVolunteers(
                         contactsDF, session, self.uri, self.volunteersFileStr)
+                    self.createSuccessDialogBox("Successfully uploaded files!")
                 except Exception as err:
                     self.createErrorDialogBox(err)
 
-    # helper function that creates a dialog box specifically for errors
-    def createErrorDialogBox(self, error):
-        self.createDialogBox("Error:\n" + str(error))
+    # helper function that checks if a pandas dataframe is empty
+    # https://stackoverflow.com/a/54009974
+    def dfIsEmpty(self, df):
+        return len(df.columns) == 0
 
     # helper function that creates a txt file from a pandas dataframe (or part of one)
     # https://stackoverflow.com/questions/41428539/data-frame-to-file-txt-python
     def convertDFToTxt(self, df, fileName):
         fileName += ".txt"
         df.to_csv(fileName, sep = "\t", index = False)
-        self.createDialogBox("The file has been saved to: " + fileName)
-        pass
 
-    # helper function that creates a dialog box with the main text passed in as a parameter
+    # helper function that creates a dialog box specifically for errors
+    def createErrorDialogBox(self, error):
+        dialog = QMessageBox.about(self, "Error", str(error))
+        return dialog
+
+    # helper function that creates a dialog box specifically for success messages
+    def createSuccessDialogBox(self, successMessage):
+        dialog = QMessageBox.about(self, "Success!", str(successMessage))
+        return dialog
+
+    # helper function that creates a generic dialog box
     def createDialogBox(self, message):
-        dialog = QMessageBox.about(self, "Alert", message)
+        dialog = QMessageBox.about(self, "Alert", str(message))
         return dialog
 
 # actually running the GUI
