@@ -317,9 +317,12 @@ class Window(QDialog):
                 try:
                     # TODO: output to txt
                     accountsDF, contactsDF = self.getDataframes(session)
-                    functions.findDuplicateFoodDonors(accountsDF)
-                    functions.findDuplicateNonprofitPartners(accountsDF)
-                    functions.findDuplicateVolunteers(contactsDF)
+                    foodDonorsDF = functions.findDuplicateFoodDonors(accountsDF)
+                    self.convertDFToTxt(foodDonorsDF, "duplicate_food_donors")
+                    nonprofitDF = functions.findDuplicateNonprofitPartners(accountsDF)
+                    self.convertDFToTxt(nonprofitDF, "duplicate_nonprofits")
+                    volunteersDF = functions.findDuplicateVolunteers(contactsDF)
+                    self.convertDFToTxt(volunteersDF, "duplicate_volunteers")
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Find incomplete rescue data":
@@ -332,10 +335,9 @@ class Window(QDialog):
             except:
                 self.createDialogBox("Unspecified error.")
             else:
-                # TODO: output pandas df to txt instead of dialog box, maybe open txt automatically
+                # TODO: output pandas df to txt instead of dialog box
                 # self.createDialogBox("Incomplete rescue data:\n" + str(data))
-                path = self.convertDFToTxt(data)
-                self.openFile(path)
+                self.convertDFToTxt(data, "incomplete_rescue_data")
         elif self.whatToDoStr == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
@@ -347,11 +349,8 @@ class Window(QDialog):
                         session, self.uri, 2, self.rescuesFileStr)
                     
                     # self.createDialogBox(choice1DF.tolist())
-                    path = self.convertDFToTxt(choice1DF)
-                    self.openFile(path)
-
-                    path = self.convertDFToTxt(choice2DF)
-                    self.openFile(path)
+                    self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
+                    self.convertDFToTxt(choice2DF, "rescue_discrepancies_not_in_salesforce")
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
