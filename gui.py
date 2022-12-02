@@ -4,10 +4,9 @@ import functions
 import salesforce
 import sys
 import requests
-import pandas
+from pandas import DataFrame
 
 # to generate exe run: pyinstaller --onefile --windowed gui.py
-# creating a class that inherits the QDialog class
 
 # TODO: DOCUMENTATION
 class Window(QDialog):
@@ -17,7 +16,7 @@ class Window(QDialog):
 
         self.uri = "https://lastmilefood.my.salesforce.com/services/data/v52.0/jobs/"
 
-        self.whatToDoStr = ""
+        self.selectedOption = ""
         self.rescuesFileStr = ""
         self.donorsFileStr = ""
         self.nonprofitsFileStr = ""
@@ -29,35 +28,34 @@ class Window(QDialog):
         # add maximize and minimize buttons
         self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, True)
+        # TODO: possibly add ? button
 
-        # set geometry for the window
+        # set default size for the window
         self.setGeometry(500, 500, 500, 500)
 
         # create forms
         self.createFilePickerForm()
-
         self.createButtonBox()
-
         self.createCredentialsForm()
-
         self.createWhatToDoForm()
 
-        # layout
+        # layouts
         mainLayout = QHBoxLayout()
-
+        # right and left sides
         buttonsAndFilePickerLayout = QVBoxLayout()
         credentialsLayout = QHBoxLayout()
-
+        # add widgets to layouts
         credentialsLayout.addWidget(self.credentialsGroup)
         buttonsAndFilePickerLayout.addWidget(self.filePickerGroup)
         buttonsAndFilePickerLayout.addWidget(self.whatToDoGroup)
         buttonsAndFilePickerLayout.addWidget(self.buttonBox)
-
+        # add right and left side layouts to main layout
         mainLayout.addLayout(credentialsLayout)
         mainLayout.addLayout(buttonsAndFilePickerLayout)
 
         self.setLayout(mainLayout)
 
+    # function that creates the file picker form
     def createFilePickerForm(self):
         self.filePickerGroup = QGroupBox("File Picker")
 
@@ -87,21 +85,24 @@ class Window(QDialog):
             lambda: self.filePicker(self.volunteersButton))
         self.volunteersButton.hide()
 
-        # adding rows
+        # adding rows to layout
         self.filePickerLayout.addRow(self.rescuesButton)
         self.filePickerLayout.addRow(self.donorsButton)
         self.filePickerLayout.addRow(self.nonprofitsButton)
         self.filePickerLayout.addRow(self.volunteersButton)
 
-        # setting layout
         self.filePickerGroup.setLayout(self.filePickerLayout)
 
+    # helper function that opens a file picker and updates the file path instance variables
     def filePicker(self, button: QPushButton = None):
         file, check = QFileDialog.getOpenFileName(None, "Choose a file",
                                                   "", "CSV File (*.csv)")
+        # check if a file was selected
         if check:
+            # change button text to the (extracted) file name
             if button is not None:
                 button.setText(self.getFileNameFromPath(file))
+            # update instance variables
             if button == self.rescuesButton:
                 self.rescuesFileStr = file
             elif button == self.donorsButton:
@@ -114,22 +115,25 @@ class Window(QDialog):
         else:
             return ""
 
+    # helper function that extracts the file name from a full file path
     def getFileNameFromPath(self, path):
         # reverse string
         path = path[::-1]
         # substring from last occurrance of / and reverse string again
         return path[0:path.index("/")][::-1]
 
+    # function that creates the credentials form
     def createCredentialsForm(self):
         self.credentialsGroup = QGroupBox("Credentials")
 
         layout = QFormLayout()
 
-        # add text boxes
+        # create text boxes
         self.emailTextBox = QLineEdit(self)
         self.passwordTextBox = QLineEdit(self)
         self.tokenTextBox = QLineEdit(self)
 
+        # makes the password text boxes have the little dots
         self.passwordTextBox.setEchoMode(QLineEdit.Password)
         self.tokenTextBox.setEchoMode(QLineEdit.Password)
 
@@ -138,17 +142,20 @@ class Window(QDialog):
         self.passwordTextBox.setMinimumWidth(200)
         self.tokenTextBox.setMinimumWidth(200)
 
+        # add each text box
         layout.addRow(self.tr("&Email:"), self.emailTextBox)
         layout.addRow(self.tr("&Password:"), self.passwordTextBox)
         layout.addRow(self.tr("&Token:"), self.tokenTextBox)
 
         self.credentialsGroup.setLayout(layout)
 
+    # function that creates the what to do form
     def createWhatToDoForm(self):
         self.whatToDoGroup = QGroupBox("What would you like to do?")
 
         layout = QFormLayout()
 
+        # create buttons
         dataUploadButton = QRadioButton("Salesforce data upload")
         salesforceDupesButton = QRadioButton(
             "Find Salesforce duplicates")
@@ -159,12 +166,14 @@ class Window(QDialog):
         newSalesforceButton = QRadioButton(
             "Create new Salesforce accounts and contacts")
 
+        # add buttons
         layout.addRow(dataUploadButton)
         layout.addRow(salesforceDupesButton)
         layout.addRow(incompleteDataButton)
         layout.addRow(rescueDiscrepanciesButton)
         layout.addRow(newSalesforceButton)
 
+        # set button triggers
         dataUploadButton.toggled.connect(self.onRadioButtonClick)
         salesforceDupesButton.toggled.connect(self.onRadioButtonClick)
         incompleteDataButton.toggled.connect(self.onRadioButtonClick)
@@ -173,15 +182,18 @@ class Window(QDialog):
 
         self.whatToDoGroup.setLayout(layout)
 
+    # helper function that determines what happens when a radio button is clicked
     def onRadioButtonClick(self):
         button = self.sender()
+        # text displayed on button
         buttonName = button.text()
 
         # update button displays
         if button.isChecked:
+            # update instance variables based on which button is clicked
             # filename on button box persists
             if buttonName == "Salesforce data upload":
-                self.whatToDoStr = "Salesforce data upload"
+                self.selectedOption = "Salesforce data upload"
                 self.updateButtonText(
                     [self.donorsButton, self.nonprofitsButton, self.volunteersButton, self.rescuesButton])
                 self.donorsButton.show()
@@ -189,27 +201,27 @@ class Window(QDialog):
                 self.volunteersButton.show()
                 self.rescuesButton.show()
             elif buttonName == "Find Salesforce duplicates":
-                self.whatToDoStr = "Find Salesforce duplicates"
+                self.selectedOption = "Find Salesforce duplicates"
                 self.rescuesButton.hide()
                 self.donorsButton.hide()
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Find incomplete rescue data":
-                self.whatToDoStr = "Find incomplete rescue data"
+                self.selectedOption = "Find incomplete rescue data"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
                 self.donorsButton.hide()
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Find rescue discrepancies":
-                self.whatToDoStr = "Find rescue discrepancies"
+                self.selectedOption = "Find rescue discrepancies"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
                 self.donorsButton.hide()
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Create new Salesforce accounts and contacts":
-                self.whatToDoStr = "Create new Salesforce accounts and contacts"
+                self.selectedOption = "Create new Salesforce accounts and contacts"
                 self.updateButtonText(
                     [self.donorsButton, self.nonprofitsButton, self.volunteersButton])
                 self.rescuesButton.hide()
@@ -217,7 +229,9 @@ class Window(QDialog):
                 self.nonprofitsButton.show()
                 self.volunteersButton.show()
 
+    # helper function that updates the button text based on whether or not it has a file attached to it
     def updateButtonText(self, buttons):
+        # update every button that is passed in
         for button in buttons:
             if button == self.rescuesButton:
                 if self.rescuesFileStr == "":
@@ -244,32 +258,37 @@ class Window(QDialog):
                     self.volunteersButton.setText(
                         self.getFileNameFromPath(self.rescuesFileStr))
 
+    # function that creates a button box
     def createButtonBox(self):
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.endStuff)
+        # "Ok"
+        self.buttonBox.accepted.connect(self.runFunctions)
+        # "Cancel"
         self.buttonBox.rejected.connect(self.reject)
 
-    # checks that all filepickers have the appropriate files loaded
+    # function that checks that filepickers have all of the appropriate files loaded
     def checkFilePickersLoaded(self):
-        if self.whatToDoStr == "Salesforce data upload":  # 4
+        if self.selectedOption == "Salesforce data upload":  # 4 files
             if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr or self.volunteersFileStr == "":
                 return False
             else:
                 return True
-        elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
+        elif self.selectedOption == "Find Salesforce duplicates":  # 0 files
             return True
-        elif self.whatToDoStr == "Find incomplete rescue data" or "Find rescue discrepancies":  # 1
+        elif self.selectedOption == "Find incomplete rescue data" or "Find rescue discrepancies":  # 1 file
             if self.rescuesFileStr == "":
                 return False
             else:
                 return True
-        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
+        elif self.selectedOption == "Create new Salesforce accounts and contacts":  # 3 files
             if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr == "":
                 return False
             else:
                 return True
 
+    # helper function that checks salesforce credentials and returns a requests.Session()
+    # creates an informative dialog box and returns false in the case of an error
     def checkCredentials(self):
         try:
             session = salesforce.loginToSalesforce(self.emailTextBox.text(
@@ -280,6 +299,7 @@ class Window(QDialog):
                 "ERROR: Credentials invalid. Please check your credentials.")
             return False, requests.Session()
 
+    # helper function that gets the accounts and contacts dataframes from salesforce
     def getDataframes(self, session):
         accountsDF = salesforce.getDataframeFromSalesforce(
             'SELECT Id, Name, RecordTypeId FROM Account', session, self.uri)
@@ -287,14 +307,18 @@ class Window(QDialog):
             'SELECT Id, Name, AccountId FROM Contact', session, self.uri)
         return accountsDF, contactsDF
 
-    def endStuff(self):
+    # the meat
+    # function that does the stuff we're actually trying to do
+    def runFunctions(self):
         if not self.checkFilePickersLoaded():
             self.createDialogBox(
                 "ERROR: Files are not loaded. Please load files.")
             return
-        # run functions
-        # only checks credentials if the function selected uses them
-        if self.whatToDoStr == "Salesforce data upload":
+        # run functions for the selected option
+        # only checks credentials if the option selected uses them
+        # uses try except to create an error dialog box if an error is encountered
+        # TODO: might want to add mouseover text/? to explain what each thing does
+        if self.selectedOption == "Salesforce data upload":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
@@ -310,12 +334,11 @@ class Window(QDialog):
                         self.rescuesFileStr
                     )
                 except Exception as err:
-                    self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Find Salesforce duplicates":
+                    self.createErrorDialogBox(err)
+        elif self.selectedOption == "Find Salesforce duplicates":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
-                    # TODO: output to txt
                     accountsDF, contactsDF = self.getDataframes(session)
                     foodDonorsDF = functions.findDuplicateFoodDonors(accountsDF)
                     self.convertDFToTxt(foodDonorsDF, "duplicate_food_donors")
@@ -324,8 +347,8 @@ class Window(QDialog):
                     volunteersDF = functions.findDuplicateVolunteers(contactsDF)
                     self.convertDFToTxt(volunteersDF, "duplicate_volunteers")
                 except Exception as err:
-                    self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Find incomplete rescue data":
+                    self.createErrorDialogBox(err)
+        elif self.selectedOption == "Find incomplete rescue data":
             try:
                 data = functions.findIncompleteRescues(self.rescuesFileStr)
             except ValueError as err:
@@ -335,25 +358,20 @@ class Window(QDialog):
             except:
                 self.createDialogBox("Unspecified error.")
             else:
-                # TODO: output pandas df to txt instead of dialog box
-                # self.createDialogBox("Incomplete rescue data:\n" + str(data))
                 self.convertDFToTxt(data, "incomplete_rescue_data")
-        elif self.whatToDoStr == "Find rescue discrepancies":
+        elif self.selectedOption == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
-                    # TODO: output to txt
                     choice1DF = functions.findRescueDiscrepancies(
                         session, self.uri, 1, self.rescuesFileStr)
                     choice2DF = functions.findRescueDiscrepancies(
                         session, self.uri, 2, self.rescuesFileStr)
-                    
-                    # self.createDialogBox(choice1DF.tolist())
                     self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
                     self.convertDFToTxt(choice2DF, "rescue_discrepancies_not_in_salesforce")
                 except Exception as err:
-                    self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
+                    self.createErrorDialogBox(err)
+        elif self.selectedOption == "Create new Salesforce accounts and contacts":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
@@ -365,23 +383,26 @@ class Window(QDialog):
                     functions.uploadVolunteers(
                         contactsDF, session, self.uri, self.volunteersFileStr)
                 except Exception as err:
-                    self.createDialogBox("Error:\n" + str(err))
+                    self.createErrorDialogBox(err)
 
+    # helper function that creates a dialog box specifically for errors
+    def createErrorDialogBox(self, error):
+        self.createDialogBox("Error:\n" + str(error))
+
+    # helper function that creates a txt file from a pandas dataframe (or part of one)
+    # https://stackoverflow.com/questions/41428539/data-frame-to-file-txt-python
     def convertDFToTxt(self, df, fileName):
-        # https://stackoverflow.com/questions/41428539/data-frame-to-file-txt-python
-        # use tab sep
-        # make sure to overwrite existing file if there is one
-        # say where the file is
         fileName += ".txt"
         df.to_csv(fileName, sep = "\t", index = False)
         self.createDialogBox("The file has been saved to: " + fileName)
         pass
 
+    # helper function that creates a dialog box with the main text passed in as a parameter
     def createDialogBox(self, message):
         dialog = QMessageBox.about(self, "Alert", message)
         return dialog
 
-# running the GUI
+# actually running the GUI
 app = QApplication(sys.argv)
 
 window = Window()
