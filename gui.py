@@ -8,7 +8,6 @@ from pandas import DataFrame
 
 # to generate exe run: pyinstaller --onefile --windowed gui.py
 
-# TODO: DOCUMENTATION
 class Window(QDialog):
     # constructor
     def __init__(self):
@@ -168,10 +167,10 @@ class Window(QDialog):
         # add tooltips
         # TODO: double check that the text on these are good
         dataUploadButton.setToolTip("Upload data to Salesforce.")
-        salesforceDupesButton.setToolTip("Find duplicates in Salesforce.\nSends the results to multiple text files in the current folder.")
-        incompleteDataButton.setToolTip("Finds incomplete rescue data.\nSends the results to a text file in the current folder.")
-        rescueDiscrepanciesButton.setToolTip("Finds rescue discrepancies.\nSends the results to multiple text files in the current folder.")
-        newSalesforceButton.setToolTip("Creates a new Salesforce account.")
+        salesforceDupesButton.setToolTip("Find duplicates in Salesforce.\nSends the results to multiple text files in the current folder.\nDoes not create text files if no duplicates were found.")
+        incompleteDataButton.setToolTip("Find incomplete rescue data.\nSends the results to a text file in the current folder.\nDoes not create a text file if no incomplete data was found.")
+        rescueDiscrepanciesButton.setToolTip("Find rescue discrepancies.\nSends the results to multiple text files in the current folder.\nDoes not create text files if no discrepancies were found.")
+        newSalesforceButton.setToolTip("Create a new Salesforce account with contacts.")
 
         # add buttons
         layout.addRow(dataUploadButton)
