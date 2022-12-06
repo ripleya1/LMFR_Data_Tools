@@ -296,24 +296,30 @@ class Window(QDialog):
         if self.whatToDoStr == "Salesforce data upload":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
-                accountsDF, contactsDF = self.getDataframes(session)
-                functions.uploadDataToSalesforce(
-                    accountsDF,
-                    contactsDF,
-                    session,
-                    self.uri,
-                    self.donorsFileStr,
-                    self.nonprofitsFileStr,
-                    self.volunteersFileStr,
-                    self.rescuesFileStr
-                )
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.uploadDataToSalesforce(
+                        accountsDF,
+                        contactsDF,
+                        session,
+                        self.uri,
+                        self.donorsFileStr,
+                        self.nonprofitsFileStr,
+                        self.volunteersFileStr,
+                        self.rescuesFileStr
+                    )
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Find Salesforce duplicates":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
-                accountsDF, contactsDF = self.getDataframes(session)
-                functions.findDuplicateFoodDonors(accountsDF)
-                functions.findDuplicateNonprofitPartners(accountsDF)
-                functions.findDuplicateVolunteers(contactsDF)
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.findDuplicateFoodDonors(accountsDF)
+                    functions.findDuplicateNonprofitPartners(accountsDF)
+                    functions.findDuplicateVolunteers(contactsDF)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Find incomplete rescue data":
             try:
                 data = functions.findIncompleteRescues(self.rescuesFileStr)
@@ -322,28 +328,33 @@ class Window(QDialog):
             except Exception as err:
                 self.createDialogBox("Error:\n" + str(err))
             except:
-                self.createDialogBox("Unspecified error")
+                self.createDialogBox("Unspecified error.")
             else:
                 self.createDialogBox("Incomplete rescue data:\n" + str(data))
         elif self.whatToDoStr == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
-                # TODO: need to figure out how to display the print messages
-                functions.findRescueDiscrepancies(
-                    session, self.uri, 1, self.rescuesFileStr)
-                functions.findRescueDiscrepancies(
-                    session, self.uri, 2, self.rescuesFileStr)
+                try:
+                    # TODO: need to figure out how to display the print messages
+                    functions.findRescueDiscrepancies(
+                        session, self.uri, 1, self.rescuesFileStr)
+                    functions.findRescueDiscrepancies(
+                        session, self.uri, 2, self.rescuesFileStr)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
-                accountsDF, contactsDF = self.getDataframes(session)
-                functions.uploadFoodDonors(
-                    accountsDF, session, self.uri, self.donorsFileStr)
-                functions.uploadNonprofitPartners(
-                    accountsDF, session, self.uri, self.nonprofitsFileStr)
-                functions.uploadVolunteers(
-                    contactsDF, session, self.uri, self.volunteersFileStr)
-        # TODO: return errors in dialog box (?) use try catch
+                try:
+                    accountsDF, contactsDF = self.getDataframes(session)
+                    functions.uploadFoodDonors(
+                        accountsDF, session, self.uri, self.donorsFileStr)
+                    functions.uploadNonprofitPartners(
+                        accountsDF, session, self.uri, self.nonprofitsFileStr)
+                    functions.uploadVolunteers(
+                        contactsDF, session, self.uri, self.volunteersFileStr)
+                except Exception as err:
+                    self.createDialogBox("Error:\n" + str(err))
 
     def createDialogBox(self, message):
         dialog = QMessageBox.about(self, "Alert", message)
