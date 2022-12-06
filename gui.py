@@ -348,21 +348,26 @@ class Window(QDialog):
                 try:
                     accountsDF, contactsDF = self.getDataframes(session)
                     foodDonorsDF = functions.findDuplicateFoodDonors(accountsDF)
+                    dialogBoxStr = ""
                     # does not create txt files if the dataframe is empty
                     if not self.dfIsEmpty(foodDonorsDF):
                         self.convertDFToTxt(foodDonorsDF, "duplicate_food_donors")
+                        dialogBoxStr += "duplicate_food_donors.txt\n"
                     nonprofitDF = functions.findDuplicateNonprofitPartners(accountsDF)
                     if not self.dfIsEmpty(nonprofitDF):
                         self.convertDFToTxt(nonprofitDF, "duplicate_nonprofits")
+                        dialogBoxStr += "duplicate_nonprofits.txt\n"
                     volunteersDF = functions.findDuplicateVolunteers(contactsDF)
                     if not self.dfIsEmpty(volunteersDF):
                         self.convertDFToTxt(volunteersDF, "duplicate_volunteers")
-                    self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any duplicates).")
+                        dialogBoxStr += "duplicate_volunteers.txt\n"
+                    self.createSuccessDialogBox("Processing successful! Result is in text files in the current folder (if there were any duplicates). The following files were created:\n" + dialogBoxStr)
                 except Exception as err:
                     self.createErrorDialogBox(err)
         elif self.selectedOption == "Find incomplete rescue data":
             try:
                 data = functions.findIncompleteRescues(self.rescuesFileStr)
+                dialogBoxStr = ""
             except ValueError as err:
                 self.createErrorDialogBox("Double check the csv column names.\n" + str(err))
             except Exception as err:
@@ -372,20 +377,24 @@ class Window(QDialog):
             else:
                 if not self.dfIsEmpty(data):
                     self.convertDFToTxt(data, "incomplete_rescue_data")
-                self.createSuccessDialogBox("Processing successful! Result is in a text file in the current folder (if there were any incomplete rescues).")
+                    dialogBoxStr += "incomplete_rescue_data.txt"
+                self.createSuccessDialogBox("Processing successful! Result is in a text file in the current folder (if there were any incomplete rescues). The following files were created:\n" + dialogBoxStr)
         elif self.selectedOption == "Find rescue discrepancies":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
+                    dialogBoxStr = ""
                     choice1DF = functions.findRescueDiscrepancies(
                         session, self.uri, 1, self.rescuesFileStr)
                     choice2DF = functions.findRescueDiscrepancies(
                         session, self.uri, 2, self.rescuesFileStr)
                     if not self.dfIsEmpty(choice1DF):
                         self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
+                        dialogBoxStr += "rescue_discrepancies_not_in_admin.txt\n"
                     if not self.dfIsEmpty(choice2DF):
                         self.convertDFToTxt(choice2DF, "rescue_discrepancies_not_in_salesforce")
-                    self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any rescue discrepancies).")
+                        dialogBoxStr += "rescue_discrepancies_not_in_salesforce.txt\n"
+                    self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any rescue discrepancies). The following files were created:\n" + dialogBoxStr)
                 except Exception as err:
                     self.createErrorDialogBox(err)
         elif self.selectedOption == "Create new Salesforce accounts and contacts":
