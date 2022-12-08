@@ -13,8 +13,6 @@ class Window(QDialog):
     def __init__(self):
         super().__init__()
 
-        self.uri = "https://lastmilefood.my.salesforce.com/services/data/v52.0/jobs/"
-
         self.selectedOption = ""
         self.rescuesFileStr = ""
         self.donorsFileStr = ""
@@ -165,7 +163,6 @@ class Window(QDialog):
             "Create new Salesforce accounts and contacts")
 
         # add tooltips
-        # TODO: double check that the text on these are good
         dataUploadButton.setToolTip("Upload data to Salesforce.")
         salesforceDupesButton.setToolTip("Find duplicates in Salesforce.\nSends the results to multiple text files in the current folder.\nDoes not create text files if no duplicates were found.")
         incompleteDataButton.setToolTip("Find incomplete rescue data.\nSends the results to a text file in the current folder.\nDoes not create a text file if no incomplete data was found.")
@@ -308,9 +305,9 @@ class Window(QDialog):
     # helper function that gets the accounts and contacts dataframes from salesforce
     def getDataframes(self, session):
         accountsDF = salesforce.getDataframeFromSalesforce(
-            'SELECT Id, Name, RecordTypeId FROM Account', session, self.uri)
+            'SELECT Id, Name, RecordTypeId FROM Account', session)
         contactsDF = salesforce.getDataframeFromSalesforce(
-            'SELECT Id, Name, AccountId FROM Contact', session, self.uri)
+            'SELECT Id, Name, AccountId FROM Contact', session)
         return accountsDF, contactsDF
 
     # the meat
@@ -332,7 +329,6 @@ class Window(QDialog):
                         accountsDF,
                         contactsDF,
                         session,
-                        self.uri,
                         self.donorsFileStr,
                         self.nonprofitsFileStr,
                         self.volunteersFileStr,
@@ -385,9 +381,9 @@ class Window(QDialog):
                 try:
                     dialogBoxStr = ""
                     choice1DF = functions.findRescueDiscrepancies(
-                        session, self.uri, 1, self.rescuesFileStr)
+                        session, 1, self.rescuesFileStr)
                     choice2DF = functions.findRescueDiscrepancies(
-                        session, self.uri, 2, self.rescuesFileStr)
+                        session, 2, self.rescuesFileStr)
                     if not self.dfIsEmpty(choice1DF):
                         self.convertDFToTxt(choice1DF, "rescue_discrepancies_not_in_admin")
                         dialogBoxStr += "rescue_discrepancies_not_in_admin.txt\n"
@@ -403,11 +399,11 @@ class Window(QDialog):
                 try:
                     accountsDF, contactsDF = self.getDataframes(session)
                     functions.uploadFoodDonors(
-                        accountsDF, session, self.uri, self.donorsFileStr)
+                        accountsDF, session, self.donorsFileStr)
                     functions.uploadNonprofitPartners(
-                        accountsDF, session, self.uri, self.nonprofitsFileStr)
+                        accountsDF, session, self.nonprofitsFileStr)
                     functions.uploadVolunteers(
-                        contactsDF, session, self.uri, self.volunteersFileStr)
+                        contactsDF, session, self.volunteersFileStr)
                     self.createSuccessDialogBox("Successfully uploaded files!")
                 except Exception as err:
                     self.createErrorDialogBox(err)
