@@ -251,12 +251,17 @@ def uploadDataToSalesforce(accountsDF, contactsDF, session, uri, donorFile, nonp
     print('\nDone!')
 
 def resolveRescueDiscrepancies(session, uri, rescueFile):
-    """Finds the Discrepancies between Salesforce and Admin Tool and then uploads them to SalesForce"""
-    discrepencesDF = findRescueDiscrepancies(session, uri, 3, rescueFile)
-    # TODO Fix issues with different length dataframes!
-    # TODO Figure out how to get the Salesforce ID for the Update into a dataframe
-    # TODO Format discrepensy data into CSV to be updated 
-    salesforce.executeSalesforceIngestJob('update', discrepencesDF.to_csv(index=False), 'Food_Rescue__c', session, uri)
+    """DOES NOT WORK.
+    
+    Intention: Finds the Discrepancies between Salesforce and Admin Tool and then uploads them to SalesForce
+    """
+    # TODO Parse Discrepancy Dataframe for what needs to update and format it in a nice way
+    # TODO Update Records in Salesforce to match what is in the admin site. This will probably require some parsing and string comparison to match up Contacts & Accounts with their SalesforceIDs
+    #       It might not, but there is a chance.
+
+    # DiscrepenciesDF is a multi-index dataframe by columns, with Level 0 being the Column Name, and Level 1 being 'Admin' or 'Salesforce' depending on which Datasource the value came from
+    discrepanciesDF = compareAdminAndSalesforceRescues(session, uri, rescueFile,1,1)
+
 
 ### WRAPPER FUNCTIONS FOR HELPER TOOLS
 
@@ -380,19 +385,21 @@ def findRescueDiscrepancies(session, uri, choice, rescueFile):
     return res
 
 def compareAdminAndSalesforceRescues(session, uri, rescueFile, onlyCompareRecordsWithPrimaryKey=1,howToShowResults = 1):
-    """Function that compares the FoodRescueHero (admin site) rescues that are downloaded 
-    with the ones already in Salesforce. Results are outputted in `Rescue_Discrepancies.csv`
+    """Function that compares the FoodRescueHero (admin site) rescues that are downloaded
+    with the ones already in Salesforce. Results are outputted in `Rescue_Discrepancies.csv`.
 
-    `onlyCompareRecordsWithPrimaryKey` can be two options
-        If `onlyCompareRecordsWithPrimaryKey` is `1`, then this will only compare rescues that are in both Admin and Salesforce
-        If `onlyCompareRecordsWithPrimaryKey` is `2`, then this will compare all rescues, regardless of if they are in both Salesforce and Admin Site.
-            Note, this option may have a lot of differences, as a record that is in the Admin site will technically not have anything to compare to,
-            and thus will be different than what is in Salesforce
+    Discrepancies are also returned for the use of other functions.
+    It is a multi-index dataframe by columns, with Level 0 being the Column Name, and Level 1 being 'Admin' or 'Salesforce' depending on which Datasource the value came from
 
-    `howToShowResults` can be two options:
-        If `howToShowResults` is `1`, then the differences are shown the same line, side by side with eachother
-        If `howToShowResults` is `2`, then the differences are show on different lines, stacked on top of eachother
-    
+    * `onlyCompareRecordsWithPrimaryKey` can be two options:
+            * If `onlyCompareRecordsWithPrimaryKey` is `1`, then this will only compare rescues that are in both Admin and Salesforce
+            * If `onlyCompareRecordsWithPrimaryKey` is `2`, then this will compare all rescues, regardless of if they are in both Salesforce and Admin Site.
+                * Note, this option may have a lot of differences, as a record that is in the Admin site will technically not have anything to compare to,
+                and thus will be different than what is in Salesforce
+
+    * `howToShowResults` can be two options:
+            * If `howToShowResults` is `1`, then the differences are shown the same line, side by side with eachother
+            * If `howToShowResults` is `2`, then the differences are show on different lines, stacked on top of eachother
     """
     # Constants to be used throughout
     # Used Right now as place holders
@@ -526,6 +533,7 @@ def compareAdminAndSalesforceRescues(session, uri, rescueFile, onlyCompareRecord
         comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=1, result_names=('Admin', 'Salesforce'))
 
     comparisonDF.to_csv('Rescue_Discrepancies.csv')
+    return comparisonDF
 
 ### GENERAL HELPERS
 def cleanupNameWhitespace(df, colName):
