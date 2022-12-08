@@ -148,7 +148,7 @@ class Window(QDialog):
 
         layout = QFormLayout()
 
-        dataUploadButton = QRadioButton("Salesforce data upload")
+        dataUploadButton = QRadioButton("Salesforce data upload (one or many files)")
         salesforceDupesButton = QRadioButton(
             "Find Salesforce duplicates")
         incompleteDataButton = QRadioButton(
@@ -267,7 +267,7 @@ class Window(QDialog):
     # checks that all filepickers have the appropriate files loaded
     def checkFilePickersLoaded(self):
         if self.whatToDoStr == "Salesforce data upload":  # 4
-            if self.rescuesFileStr == "" or self.donorsFileStr == "" or self.nonprofitsFileStr == "" or self.volunteersFileStr == "":
+            if self.rescuesFileStr == "" and self.donorsFileStr == "" and self.nonprofitsFileStr == "" and self.volunteersFileStr == "":
                 return False
             else:
                 return True

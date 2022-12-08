@@ -227,32 +227,45 @@ def uploadNewFoodRescues(session, uri, rescueFile):
     # upload these new rescues to Salesforce
     uploadFoodRescues(mergedDF, session, uri)
 
-def uploadDataToSalesforce(accountsDF, contactsDF, session, uri, donorFile, nonprofitPartner, volunteerFile, rescueFile):
-    """master function to upload new data to Salesforce (Accounts, Contacts, Rescues)"""
+def uploadDataToSalesforce(accountsDF: pd.DataFrame, contactsDF, session, uri, donorFile=None, nonprofitPartner=None, volunteerFile=None, rescueFile=None):
+    """master function to upload new data to Salesforce (Accounts, Contacts, Rescues)
+    Files are optional
+    """
     # first make sure all new Donors, Nonprofits, and Volunteers are uploaded to Salesforce
-    print('-----------------------------')
-    print('Checking for new Food Donors:')
-    print('-----------------------------')
-    uploadFoodDonors(accountsDF, session, uri, donorFile)
-    print('------------------------------------')
-    print('Checking for new Nonprofit Partners:')
-    print('------------------------------------')
-    uploadNonprofitPartners(accountsDF, session, uri, nonprofitPartner)
-    print('----------------------------')
-    print('Checking for new Volunteers:')
-    print('----------------------------')
-    uploadVolunteers(contactsDF, session, uri, volunteerFile)
+
+    # Upload Food Donors
+    if donorFile != "" and donorFile is not None:
+        print('-----------------------------')
+        print('Checking for new Food Donors:')
+        print('-----------------------------')
+        uploadFoodDonors(accountsDF, session, uri, donorFile)
+
+    # Upload NonProfit Partners
+    if nonprofitPartner != "" and nonprofitPartner is not None:
+        print('------------------------------------')
+        print('Checking for new Nonprofit Partners:')
+        print('------------------------------------')
+        uploadNonprofitPartners(accountsDF, session, uri, nonprofitPartner)
+
+    # Upload Volunteers
+    if volunteerFile != "" and volunteerFile is not None:
+        print('----------------------------')
+        print('Checking for new Volunteers:')
+        print('----------------------------')
+        uploadVolunteers(contactsDF, session, uri, volunteerFile)
 
     # upload new rescue data
-    print('-------------------------------')
-    print('Uploading all new Food Rescues:')
-    print('-------------------------------')
-    uploadNewFoodRescues(session, uri, rescueFile)
+    if rescueFile != "" and rescueFile is not None:
+        print('-------------------------------')
+        print('Uploading all new Food Rescues:')
+        print('-------------------------------')
+        uploadNewFoodRescues(session, uri, rescueFile)
+
     print('\nDone!')
 
 def resolveRescueDiscrepancies(session, uri, rescueFile):
     """DOES NOT WORK.
-    
+
     Intention: Finds the Discrepancies between Salesforce and Admin Tool and then uploads them to SalesForce
     """
     # TODO Parse Discrepancy Dataframe for what needs to update and format it in a nice way
