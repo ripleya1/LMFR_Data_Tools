@@ -6,11 +6,8 @@
 */*/*/__pycache__/
 */*/__pycache__/
 */__pycache__/
-<<<<<<< HEAD
 *.pyc
-=======
 __pycache__/
 .ipynb
 *.spec
 build/
->>>>>>> 10abc7a5db55764435dec515b5479dbccd68da68
