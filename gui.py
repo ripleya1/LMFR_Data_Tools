@@ -156,8 +156,11 @@ class Window(QDialog):
         rescueDiscrepanciesButton = QRadioButton(
             "Find rescue discrepancies")
         resolveRescueDiscrepanciesButton = QRadioButton(
-            "Resolve Rescue Discrepancies"
+            "Find Changes between Salesforce Data and Admin Site Data",
         )
+        #Diables the resolveRescueDiscrepanciesButton as it is not confirmed to work yet
+        resolveRescueDiscrepanciesButton.setEnabled(False)
+
         newSalesforceButton = QRadioButton(
             "Create new Salesforce accounts and contacts")
 
@@ -212,8 +215,8 @@ class Window(QDialog):
                 self.donorsButton.hide()
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
-            elif buttonName == "Resolve Rescue Discrepancies":
-                self.whatToDoStr = "Resolve Rescue Discrepancies"
+            elif buttonName == "Find Changes between Salesforce Data and Admin Site Data":
+                self.whatToDoStr = "Find Changes between Salesforce Data and Admin Site Data"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
                 self.donorsButton.hide()
@@ -270,13 +273,13 @@ class Window(QDialog):
                 return True
         elif self.whatToDoStr == "Find Salesforce duplicates":  # 0
             return True
-        elif self.whatToDoStr == "Find incomplete rescue data" or self.whatToDoStr == "Find rescue discrepancies" or self.whatToDoStr == "Resolve Rescue Discrepancies":  # 1
+        elif self.whatToDoStr == "Find incomplete rescue data" or self.whatToDoStr == "Find rescue discrepancies" or self.whatToDoStr == "Find Changes between Salesforce Data and Admin Site Data":  # 1
             if self.rescuesFileStr == "":
                 return False
             else:
                 return True
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
-            if self.rescuesFileStr or self.donorsFileStr or self.nonprofitsFileStr == "":
+            if self.rescuesFileStr == "" or self.donorsFileStr == "" or self.nonprofitsFileStr == "":
                 return False
             else:
                 return True
@@ -354,11 +357,11 @@ class Window(QDialog):
                         session, self.uri, 2, self.rescuesFileStr)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Resolve Rescue Discrepancies":
+        elif self.whatToDoStr == "Find Changes between Salesforce Data and Admin Site Data":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
-                    functions.resolveRescueDiscrepancies(session, self.uri, self.rescuesFileStr)
+                    functions.compareAdminAndSalesforceRescues(session, self.uri, self.rescuesFileStr, choice=1)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
