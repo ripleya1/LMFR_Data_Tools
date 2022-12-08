@@ -71,7 +71,7 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
     salesforce.executeSalesforceIngestJob('insert', uploadDF.to_csv(index=False), 'Account', session)
 
     # pull down new list of Accounts
-    salesforceAccountsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, RecordTypeId FROM Account", session)
+    salesforceAccountsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session)
 
     # clean new Accounts data
     salesforceAccountsDF = salesforceAccountsDF[salesforceAccountsDF['RecordTypeId'] == accountType]
@@ -100,10 +100,10 @@ def uploadAccounts(salesforceAccountsDF, adminAccountsDF, accountType, session):
 def uploadFoodRescues(rescuesDF, session):
     """generic function to upload Food Rescue data to Salesforce"""
     # load in Accounts from Salesforce
-    salesforceAccountsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, RecordTypeId FROM Account", session)
+    salesforceAccountsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session)
 
     # load in Contacts from Salesforce
-    salesforceContactsDF = salesforce.getDataframeFromSalesforce("SELECT Id, Name, AccountId FROM Contact", session)
+    salesforceContactsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session)
 
     # cleanup rescuesDF
     rescuesDF.drop(axis='columns', columns=['Donor Name', 'Recipient Name'], inplace=True)
