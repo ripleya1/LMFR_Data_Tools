@@ -361,7 +361,7 @@ class Window(QDialog):
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
-                    functions.compareAdminAndSalesforceRescues(session, self.uri, self.rescuesFileStr, choice=1)
+                    functions.compareAdminAndSalesforceRescues(session, self.uri, self.rescuesFileStr,onlyCompareRecordsWithPrimaryKey=1 ,howToShowResults=1)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
         elif self.whatToDoStr == "Create new Salesforce accounts and contacts":

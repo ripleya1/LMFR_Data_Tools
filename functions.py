@@ -379,13 +379,19 @@ def findRescueDiscrepancies(session, uri, choice, rescueFile):
     print(res.count())
     return res
 
-def compareAdminAndSalesforceRescues(session, uri, rescueFile, choice = 1):
+def compareAdminAndSalesforceRescues(session, uri, rescueFile, onlyCompareRecordsWithPrimaryKey=1,howToShowResults = 1):
     """Function that compares the FoodRescueHero (admin site) rescues that are downloaded 
     with the ones already in Salesforce. Results are outputted in `Rescue_Discrepancies.csv`
 
-    Choice can be two options:
-        If choice is `1`, then the differences are shown the same line, side by side with eachother
-        If choice is `2`, then the differences are show on different lines, stacked on top of eachother
+    `onlyCompareRecordsWithPrimaryKey` can be two options
+        If `onlyCompareRecordsWithPrimaryKey` is `1`, then this will only compare rescues that are in both Admin and Salesforce
+        If `onlyCompareRecordsWithPrimaryKey` is `2`, then this will compare all rescues, regardless of if they are in both Salesforce and Admin Site.
+            Note, this option may have a lot of differences, as a record that is in the Admin site will technically not have anything to compare to,
+            and thus will be different than what is in Salesforce
+
+    `howToShowResults` can be two options:
+        If `howToShowResults` is `1`, then the differences are shown the same line, side by side with eachother
+        If `howToShowResults` is `2`, then the differences are show on different lines, stacked on top of eachother
     
     """
     # Constants to be used throughout
@@ -441,10 +447,16 @@ def compareAdminAndSalesforceRescues(session, uri, rescueFile, choice = 1):
 
     salesforceRescuesDF.drop(['Donor_Id','Partner_Id','Volunteer_Id'], axis=1, inplace=True)
 
-
+    if onlyCompareRecordsWithPrimaryKey == 1:
+        joinType = 'inner'
+    elif onlyCompareRecordsWithPrimaryKey == 2:
+        joinType = 'outer'
+    else:
+        print("Incorrect Value for `onlyCompareRecordsWithPrimaryKey`. Assuming option 1: `Iner Join`")
+        joinType = 'inner'
 
     # Full outer joins the Pandas Dataframe
-    df = pd.merge(adminFoodRescuesDF, salesforceRescuesDF, how='outer', left_on=[ADMIN_SITE_PRIMARY_KEY], right_on=[SALESFORCE_SITE_PRIMARY_KEY])
+    df = pd.merge(adminFoodRescuesDF, salesforceRescuesDF, how=joinType, left_on=[ADMIN_SITE_PRIMARY_KEY], right_on=[SALESFORCE_SITE_PRIMARY_KEY])
 
     df.set_index(ADMIN_SITE_PRIMARY_KEY, inplace=True)
 
@@ -503,10 +515,10 @@ def compareAdminAndSalesforceRescues(session, uri, rescueFile, choice = 1):
         }
     )
 
-    if choice == 1:
+    if howToShowResults == 1:
         # In-line comparison
         comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=1, result_names=('Admin', 'Salesforce'))
-    elif choice == 2:
+    elif howToShowResults == 2:
         # Stacked Comparisons
         comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=0, result_names=('Admin', 'Salesforce'))
     else:
