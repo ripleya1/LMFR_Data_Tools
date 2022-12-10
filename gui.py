@@ -202,7 +202,7 @@ class Window(QDialog):
         if button.isChecked:
             # update instance variables based on which button is clicked
             # filename on button box persists
-            if buttonName == "Salesforce data upload":
+            if buttonName == "Salesforce data upload (one or many files)":
                 self.selectedOption = "Salesforce data upload"
                 self.updateButtonText(
                     [self.donorsButton, self.nonprofitsButton, self.volunteersButton, self.rescuesButton])
@@ -231,7 +231,7 @@ class Window(QDialog):
                 self.nonprofitsButton.hide()
                 self.volunteersButton.hide()
             elif buttonName == "Find Changes between Salesforce Data and Admin Site Data":
-                self.whatToDoStr = "Find Changes between Salesforce Data and Admin Site Data"
+                self.selectedOption = "Find Changes between Salesforce Data and Admin Site Data"
                 self.updateButtonText([self.rescuesButton])
                 self.rescuesButton.show()
                 self.donorsButton.hide()
@@ -286,19 +286,19 @@ class Window(QDialog):
 
     # function that checks that filepickers have all of the appropriate files loaded
     def checkFilePickersLoaded(self):
-        if self.whatToDoStr == "Salesforce data upload":  # 4
+        if self.selectedOption == "Salesforce data upload":  # 4
             if self.rescuesFileStr == "" and self.donorsFileStr == "" and self.nonprofitsFileStr == "" and self.volunteersFileStr == "":
                 return False
             else:
                 return True
         elif self.selectedOption == "Find Salesforce duplicates":  # 0 files
             return True
-        elif self.whatToDoStr == "Find incomplete rescue data" or self.whatToDoStr == "Find rescue discrepancies" or self.whatToDoStr == "Find Changes between Salesforce Data and Admin Site Data":  # 1
+        elif self.selectedOption == "Find incomplete rescue data" or self.selectedOption == "Find rescue discrepancies" or self.selectedOption == "Find Changes between Salesforce Data and Admin Site Data":  # 1
             if self.rescuesFileStr == "":
                 return False
             else:
                 return True
-        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":  # 3
+        elif self.selectedOption == "Create new Salesforce accounts and contacts":  # 3
             if self.rescuesFileStr == "" or self.donorsFileStr == "" or self.nonprofitsFileStr == "":
                 return False
             else:
@@ -407,7 +407,7 @@ class Window(QDialog):
                     self.createSuccessDialogBox("Processing successful! Result is in multiple text files in the current folder (if there were any rescue discrepancies). The following files were created:\n" + dialogBoxStr)
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Find Changes between Salesforce Data and Admin Site Data":
+        elif self.selectedOption == "Find Changes between Salesforce Data and Admin Site Data":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
@@ -421,7 +421,7 @@ class Window(QDialog):
 
                 except Exception as err:
                     self.createDialogBox("Error:\n" + str(err))
-        elif self.whatToDoStr == "Create new Salesforce accounts and contacts":
+        elif self.selectedOption == "Create new Salesforce accounts and contacts":
             credentialsValidated, session = self.checkCredentials()
             if credentialsValidated:
                 try:
