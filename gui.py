@@ -4,7 +4,6 @@ import functions
 import salesforce
 import sys
 import requests
-from pandas import DataFrame
 
 # to generate exe run: pyinstaller --onefile --windowed gui.py
 
