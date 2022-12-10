@@ -5,12 +5,14 @@ from io import StringIO
 import requests
 import pandas as pd
 from zeep import Client
+import functions
 
 
-def loginToSalesforce(username, password, securityToken):
+def loginToSalesforce(username: str, password: str, securityToken: str):
     """login function that returns a Salesforce API session"""
     wsdl = './basic_wsdl.xml'
 
+    # Creates the session in order to be able to pull out the Session ID
     SOAPclient = Client(wsdl)
     data = {'username': username, 'password': password+securityToken}
     response = SOAPclient.service.login(**data)
@@ -22,8 +24,7 @@ def loginToSalesforce(username, password, securityToken):
 
     return session
 
-
-def loginToSalesforceSANDBOX(username, password, securityToken, clientId, clientSecret):
+def loginToSalesforceSANDBOX(username: str, password: str, securityToken: str, clientId: str, clientSecret: str):
     """
     DEVELOPMENT MODE -- FOR TESTING ONLY
 
@@ -33,8 +34,7 @@ def loginToSalesforceSANDBOX(username, password, securityToken, clientId, client
     """
     data = {'grant_type': 'password', 'client_id': clientId, 'client_secret': clientSecret,
             'username': username, 'password': password+securityToken}
-    response = requests.post(
-        'https://test.salesforce.com/services/oauth2/token', data=data)
+    response = requests.post('https://test.salesforce.com/services/oauth2/token', data=data)
     sessionId = response.json()['access_token']
 
     # create session for Bulk 2.0 API calls
@@ -43,12 +43,12 @@ def loginToSalesforceSANDBOX(username, password, securityToken, clientId, client
 
     return session
 
-
-def getDataframeFromSalesforce(query, session, uri):
+def getDataframeFromSalesforce(query: str, session: requests.Session):
     """
     SALESFORCE BULK 2.0 API FUNCTIONS: QUERY AND INGEST
     function to query Salesforce and return a Pandas Dataframe
     """
+    uri = functions.getConfigValue('GeneralConfiguration', 'uri')
     session.headers.update({'Content-Type': 'application/json;charset=utf-8'})
 
     # create a job to query all Account records
@@ -56,8 +56,9 @@ def getDataframeFromSalesforce(query, session, uri):
         "operation": "query",
         "query": query,
     })
-    response = session.post(uri+'query', data=data)
+    response = session.post(uri + 'query', data=data)
 
+    # Makes sure that the query job was created successfully
     if response.status_code == 200:
         print('Query job created.')
     else:
@@ -71,6 +72,7 @@ def getDataframeFromSalesforce(query, session, uri):
     print('Waiting for query job to complete...')
     jobComplete = False
 
+    # Checks to see if the query job has been completed
     while not jobComplete:
         response = session.get(uri+'query/'+jobId)
         jsonRes = response.json()
@@ -86,10 +88,12 @@ def getDataframeFromSalesforce(query, session, uri):
     df = pd.read_csv(data)
     return df
 
-def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
+def executeSalesforceIngestJob(operation: str, importData: pd.DataFrame, objectType: str, session: requests.Session):
     """
     function to create and execute a Salesforce bulk upload or delete job
     """
+    uri = functions.getConfigValue('GeneralConfiguration', 'uri')
+
     # create data import job
     data = json.dumps({
         "operation": operation,
@@ -99,6 +103,7 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
     })
     response = session.post(uri+'ingest/', data=data)
 
+    # Makes sure that the data batch job was created successfully
     if response.status_code == 200:
         if operation == 'insert':
             print('Upload job created.')
@@ -123,6 +128,7 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
     response = session.put(uri+'ingest/'+jobId+'/batches',
                            data=importData.encode('utf-8'))
 
+    # Makes sure that the job was created successfully
     if response.status_code == 201:
         print('Data added to job.')
     else:
@@ -139,6 +145,7 @@ def executeSalesforceIngestJob(operation, importData, objectType, session, uri):
     print('Waiting for job to complete...')
     jobComplete = False
 
+    # Checks to see if Job is complete
     while not jobComplete:
         response = session.get(uri+'ingest/'+jobId)
         jsonRes = response.json()
