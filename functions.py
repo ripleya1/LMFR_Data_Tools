@@ -235,31 +235,54 @@ def uploadNewFoodRescues(session, rescueFile):
     # upload these new rescues to Salesforce
     uploadFoodRescues(mergedDF, session)
 
-def uploadDataToSalesforce(accountsDF, contactsDF, session, donorFile, nonprofitPartner, volunteerFile, rescueFile):
-    """master function to upload new data to Salesforce (Accounts, Contacts, Rescues)"""
+def uploadDataToSalesforce(accountsDF: pd.DataFrame, contactsDF, session, uri, donorFile=None, nonprofitPartner=None, volunteerFile=None, rescueFile=None):
+    """master function to upload new data to Salesforce (Accounts, Contacts, Rescues)
+    Files are optional
+    """
     # first make sure all new Donors, Nonprofits, and Volunteers are uploaded to Salesforce
-    print('-----------------------------')
-    print('Checking for new Food Donors:')
-    print('-----------------------------')
-    uploadFoodDonors(accountsDF, session, donorFile)
 
-    print('------------------------------------')
-    print('Checking for new Nonprofit Partners:')
-    print('------------------------------------')
-    uploadNonprofitPartners(accountsDF, session, nonprofitPartner)
+    # Upload Food Donors
+    if donorFile != "" and donorFile is not None:
+        print('-----------------------------')
+        print('Checking for new Food Donors:')
+        print('-----------------------------')
+        uploadFoodDonors(accountsDF, session, donorFile)
 
-    print('----------------------------')
-    print('Checking for new Volunteers:')
-    print('----------------------------')
-    uploadVolunteers(contactsDF, session, volunteerFile)
+    # Upload NonProfit Partners
+    if nonprofitPartner != "" and nonprofitPartner is not None:
+        print('------------------------------------')
+        print('Checking for new Nonprofit Partners:')
+        print('------------------------------------')
+        uploadNonprofitPartners(accountsDF, session, nonprofitPartner)
+
+    # Upload Volunteers
+    if volunteerFile != "" and volunteerFile is not None:
+        print('----------------------------')
+        print('Checking for new Volunteers:')
+        print('----------------------------')
+        uploadVolunteers(contactsDF, session, volunteerFile)
 
     # upload new rescue data
-    print('-------------------------------')
-    print('Uploading all new Food Rescues:')
-    print('-------------------------------')
-    uploadNewFoodRescues(session, rescueFile)
+    if rescueFile != "" and rescueFile is not None:
+        print('-------------------------------')
+        print('Uploading all new Food Rescues:')
+        print('-------------------------------')
+        uploadNewFoodRescues(session, rescueFile)
 
     print('\nDone!')
+
+def resolveRescueDiscrepancies(session, rescueFile):
+    """DOES NOT WORK.
+
+    Intention: Finds the Discrepancies between Salesforce and Admin Tool and then uploads them to SalesForce
+    """
+    # TODO Parse Discrepancy Dataframe for what needs to update and format it in a nice way
+    # TODO Update Records in Salesforce to match what is in the admin site. This will probably require some parsing and string comparison to match up Contacts & Accounts with their SalesforceIDs
+    #       It might not, but there is a chance.
+
+    # DiscrepenciesDF is a multi-index dataframe by columns, with Level 0 being the Column Name, and Level 1 being 'Admin' or 'Salesforce' depending on which Datasource the value came from
+    discrepanciesDF = compareAdminAndSalesforceRescues(session, rescueFile,1,1)
+
 
 ### WRAPPER FUNCTIONS FOR HELPER TOOLS
 def findDuplicateRecords(df, colName):
@@ -338,8 +361,13 @@ def updateSFRescuesWithComments(session, rescueCommentFile):
     mergedCommentsDF.columns = ['Id', 'Comments__c']
     salesforce.executeSalesforceIngestJob('update', mergedCommentsDF.to_csv(index=False), 'Food_Rescue__c', session)
 
-def findRescueDiscrepancies(session, choose, rescueFile):
-    """function to find all food rescue discrepancies between Salesforce and the admin tool"""
+def findRescueDiscrepancies(session, choice, rescueFile):
+    """function to find all food rescue discrepancies between Salesforce and the admin tool
+    
+    Choice can be two options:
+        If choice is `1`, then rescue IDs that are marked completed in Salesforce but not in the admin tool are identified
+        If choice is `2`, then rescue IDs that are marked completed in the admin tool but not in Salesforce are identified
+    """
     salesforceRescuesDF = salesforce.getDataframeFromSalesforce('SELECT State__c, Food_Type__c, Day_of_Pickup__c, Rescue_Detail_URL__c, Rescue_Id__c FROM Food_Rescue__c', session)
     salesforceRescuesDF['Day_of_Pickup__c'] = pd.to_datetime(salesforceRescuesDF['Day_of_Pickup__c'])
 
@@ -361,11 +389,11 @@ def findRescueDiscrepancies(session, choose, rescueFile):
     adminRescueID = adminRescuesDF['Rescue ID']
     salesforceRescueID = salesforceRescuesDF['Rescue_Id__c']
 
-    if choose == 1:
+    if choice == 1:
         # print all rescue IDs in Salesforce but not in admin
         res = salesforceRescueID[~salesforceRescueID.isin(adminRescueID)]
         print('All rescue IDs that are marked completed in Salesforce but not in the admin tool:')
-    elif choose == 2:
+    elif choice == 2:
         # print all rescue IDs in the admin tool but not in Salesforce
         res = adminRescueID[~adminRescueID.isin(salesforceRescueID)]
         print('All rescue IDs that are marked completed in the admin tool but not in Salesforce:')
@@ -373,6 +401,156 @@ def findRescueDiscrepancies(session, choose, rescueFile):
     print('Record Count:')
     print(res.count())
     return res
+
+def compareAdminAndSalesforceRescues(session, rescueFile, onlyCompareRecordsWithPrimaryKey=1,howToShowResults = 1):
+    """Function that compares the FoodRescueHero (admin site) rescues that are downloaded
+    with the ones already in Salesforce. Results are returned.
+
+    Discrepancies are also returned for the use of other functions.
+    It is a multi-index dataframe by columns, with Level 0 being the Column Name, and Level 1 being 'Admin' or 'Salesforce' depending on which Datasource the value came from
+
+    * `onlyCompareRecordsWithPrimaryKey` can be two options:
+            * If `onlyCompareRecordsWithPrimaryKey` is `1`, then this will only compare rescues that are in both Admin and Salesforce
+            * If `onlyCompareRecordsWithPrimaryKey` is `2`, then this will compare all rescues, regardless of if they are in both Salesforce and Admin Site.
+                * Note, this option may have a lot of differences, as a record that is in the Admin site will technically not have anything to compare to,
+                and thus will be different than what is in Salesforce
+
+    * `howToShowResults` can be two options:
+            * If `howToShowResults` is `1`, then the differences are shown the same line, side by side with eachother
+            * If `howToShowResults` is `2`, then the differences are show on different lines, stacked on top of eachother
+    """
+    # Constants to be used throughout
+    # Used Right now as place holders
+    ADMIN_SITE_PRIMARY_KEY = 'Food Rescue Primary Key'
+    SALESFORCE_SITE_PRIMARY_KEY = 'Food_Rescue_Id__c'
+
+    # Admin Site Rescue File
+    adminFoodRescuesDF = pd.read_csv(rescueFile)
+
+    # Salesforce DataFrames
+    salesforceRescuesDF = salesforce.getDataframeFromSalesforce(f'SELECT Id, Rescue_Id__c, {SALESFORCE_SITE_PRIMARY_KEY}, State__c, Day_of_Pickup__c, Description__c, Food_Type__c, Weight__c, Rescue_Detail_URL__c, Food_Donor_Account_Name__c, Agency_Name__c, Volunteer_Name__c FROM Food_Rescue__c', session)
+    accountsDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, RecordTypeId FROM Account', session)
+    contactDF = salesforce.getDataframeFromSalesforce('SELECT Id, Name, AccountId FROM Contact', session)
+
+    # Filters DataFrames down to only have the correct information
+    foodDonorsDF = accountsDF[accountsDF['RecordTypeId'] == getConfigValue('RecordTypeId', 'foodDonor')]
+    partnerDF = accountsDF[accountsDF['RecordTypeId'] == getConfigValue('RecordTypeId', 'nonProfitPartner')]
+    volunteerDF = contactDF[contactDF['AccountId'] == getConfigValue('AccountId', 'volunteers')]
+
+    # Renames and removes uneeded columns in joined tables
+    foodDonorsDF = accountsDF[['Id', 'Name']]
+    foodDonorsDF = foodDonorsDF.rename(
+        columns={
+            'Id': 'Donor_Id',
+            'Name': 'Donor_Name'
+        }
+    )
+
+    partnerDF = accountsDF[['Id', 'Name']]
+    partnerDF = partnerDF.rename(
+        columns={
+            'Id': 'Partner_Id',
+            'Name': 'Partner_Name'
+        }
+    )
+
+    volunteerDF = contactDF[['Id', 'Name']]
+    volunteerDF = volunteerDF.rename(
+        columns={
+            'Id': 'Volunteer_Id',
+            'Name': 'Volunteer_Name'
+        }
+    )
+
+    # Merges additional dataframes from SalesForce to get all data that can be compared
+    salesforceRescuesDF = salesforceRescuesDF.merge(
+        foodDonorsDF, how='left', left_on='Food_Donor_Account_Name__c', right_on='Donor_Id')
+    salesforceRescuesDF = salesforceRescuesDF.merge(
+        partnerDF, how='left', left_on='Agency_Name__c', right_on='Partner_Id')
+    salesforceRescuesDF = salesforceRescuesDF.merge(
+        volunteerDF, how='left', left_on='Volunteer_Name__c', right_on='Volunteer_Id')
+
+    salesforceRescuesDF.drop(['Donor_Id','Partner_Id','Volunteer_Id'], axis=1, inplace=True)
+
+    if onlyCompareRecordsWithPrimaryKey == 1:
+        joinType = 'inner'
+    elif onlyCompareRecordsWithPrimaryKey == 2:
+        joinType = 'outer'
+    else:
+        print("Incorrect Value for `onlyCompareRecordsWithPrimaryKey`. Assuming option 1: `Iner Join`")
+        joinType = 'inner'
+
+    # Full outer joins the Pandas Dataframe
+    df = pd.merge(adminFoodRescuesDF, salesforceRescuesDF, how=joinType, left_on=[ADMIN_SITE_PRIMARY_KEY], right_on=[SALESFORCE_SITE_PRIMARY_KEY])
+
+    df.set_index(ADMIN_SITE_PRIMARY_KEY, inplace=True)
+
+    # Converts all blanks to empty strings for comparison
+    df['Day of Pickup Start'].fillna('', inplace=True)
+    df['Day_of_Pickup__c'].fillna('', inplace=True)
+    df['Donor Name'].fillna('', inplace=True)
+    df['Food_Donor_Account_Name__c'].fillna('', inplace=True)
+    df['Recipient Name'].fillna('', inplace=True)
+    df['Agency_Name__c'].fillna('', inplace=True)
+    df['Volunteer Name'].fillna('', inplace=True)
+    df['Volunteer_Name__c'].fillna('', inplace=True)
+    df['Rescue State'].fillna('', inplace=True)
+    df['State__c'].fillna('', inplace=True)
+    df['Weight'].fillna('', inplace=True)
+    df['Weight__c'].fillna('', inplace=True)
+    df['Rescue Detail URL'].fillna('', inplace=True)
+    df['Rescue_Detail_URL__c'].fillna('', inplace=True)
+
+    # Formats all DateTime Columns the same
+    dateColumns = ['Day of Pickup Start','Day_of_Pickup__c']
+
+    for column in dateColumns:
+        df[column] = pd.to_datetime(df[column])
+        df[column] = df[column].dt.strftime('%m/%d/%Y')
+
+    # Filters Dataframe down to only where there are differences
+    filtered = df[
+        (df['Day of Pickup Start'] != df['Day_of_Pickup__c']) |
+        (df['Donor Name'] != df['Food_Donor_Account_Name__c']) |
+        (df['Recipient Name'] != df['Agency_Name__c']) |
+        (df['Volunteer Name'] != df['Volunteer_Name__c']) |
+        (df['Rescue State'] != df['State__c']) |
+        (df['Weight'] != df['Weight__c']) |
+        (df['Rescue Detail URL'] != df['Rescue_Detail_URL__c'])
+    ]
+
+
+    # Splits full outer join apart to be able to run a pd.Compare
+    adminFoodRescuesDF = filtered[['Rescue ID','Food Type','Description','Day of Pickup Start', 'Donor Name', 'Recipient Name','Volunteer Name', 'Rescue State', 'Weight', 'Rescue Detail URL']]
+    salesforceRescuesDF = filtered[['Rescue_Id__c','Food_Type__c','Description__c','Day_of_Pickup__c', 'Donor_Name','Partner_Name', 'Volunteer_Name', 'State__c', 'Weight__c', 'Rescue_Detail_URL__c']]
+
+    # Renames Food Rescue Dataframe columns to match what is in salesforce
+    adminFoodRescuesDF = adminFoodRescuesDF.rename(
+        columns={
+            'Rescue ID': 'Rescue_Id__c',
+            'Food Type': 'Food_Type__c',
+            'Description': 'Description__c',
+            'Day of Pickup Start': 'Day_of_Pickup__c',
+            'Donor Name': 'Donor_Name',
+            'Recipient Name': 'Partner_Name',
+            'Volunteer Name': 'Volunteer_Name',
+            'Rescue State': 'State__c',
+            'Weight': 'Weight__c',
+            'Rescue Detail URL': 'Rescue_Detail_URL__c'
+        }
+    )
+
+    if howToShowResults == 1:
+        # In-line comparison
+        comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=1, result_names=('Admin', 'Salesforce'))
+    elif howToShowResults == 2:
+        # Stacked Comparisons
+        comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=0, result_names=('Admin', 'Salesforce'))
+    else:
+        print("Choice is not a valid option. Assuming In-line comparison is preferred")
+        comparisonDF = adminFoodRescuesDF.compare(salesforceRescuesDF, align_axis=1, result_names=('Admin', 'Salesforce'))
+
+    return comparisonDF
 
 ### GENERAL HELPERS
 def cleanupNameWhitespace(df, colName):

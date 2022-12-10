@@ -159,6 +159,8 @@ def executeSalesforceIngestJob(operation: str, importData: pd.DataFrame, objectT
 
     if operation == 'insert':
         print('Upload complete!\n')
+    if operation == 'update':
+        print('Update complete!\n')
     elif operation == 'delete':
         print('Deletion complete.\n')
 
