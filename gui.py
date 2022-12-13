@@ -160,7 +160,8 @@ class Window(QDialog):
         resolveRescueDiscrepanciesButton = QRadioButton(
             "Find Changes between Salesforce Data and Admin Site Data",
         )
-        #Diables the resolveRescueDiscrepanciesButton as it is not confirmed to work yet
+        
+        # Disables the resolveRescueDiscrepanciesButton as it is not confirmed to work yet
         resolveRescueDiscrepanciesButton.setEnabled(False)
 
         newSalesforceButton = QRadioButton(
@@ -171,6 +172,7 @@ class Window(QDialog):
         salesforceDupesButton.setToolTip("Find duplicates in Salesforce.\nSends the results to multiple text files in the current folder.\nDoes not create text files if no duplicates were found.")
         incompleteDataButton.setToolTip("Find incomplete rescue data.\nSends the results to a text file in the current folder.\nDoes not create a text file if no incomplete data was found.")
         rescueDiscrepanciesButton.setToolTip("Find rescue discrepancies.\nSends the results to multiple text files in the current folder.\nDoes not create text files if no discrepancies were found.")
+        resolveRescueDiscrepanciesButton.setToolTip("Function disabled as it has not yet been implemented.")
         newSalesforceButton.setToolTip("Create a new Salesforce account with contacts.")
 
         # add buttons
